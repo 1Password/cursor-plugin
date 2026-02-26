@@ -1,0 +1,23 @@
+{
+  "name": "1password",
+  "version": "1.0.0",
+  "description": "1Password integration for Cursor to secure your development workflow with automated environment validation, secret management, and developer tooling.",
+  "author": {
+    "name": "1Password"
+  },
+  "homepage": "https://1password.com",
+  "repository": "https://github.com/1Password/cursor-plugin",
+  "license": "MIT",
+  "keywords": [
+    "1password",
+    "secrets",
+    "security",
+    "environment",
+    "env",
+    "dotenv",
+    "hooks",
+    "validation"
+  ],
+  "logo": "assets/logo.svg",
+  "hooks": "hooks/hooks.json"
+}

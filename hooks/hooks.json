@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "./scripts/validate-mounted-env-files.sh"
+      }
+    ]
+  }
+}
