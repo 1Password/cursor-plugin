@@ -9,7 +9,7 @@ For more on 1Password's developer tools, see the [1Password Developer Documentat
 - [1Password](https://1password.com) subscription
 - [1Password for Mac or Linux](https://1password.com/downloads)
 - [Cursor](https://cursor.com)
-- `[sqlite3](https://www.sqlite.org/)` installed and available in your `PATH` (pre-installed on macOS; install via your package manager on Linux)
+- [sqlite3](https://www.sqlite.org/) installed and available in your `PATH` (pre-installed on macOS; install via your package manager on Linux)
 
 > **Note:** [Local `.env` files](https://developer.1password.com/docs/environments/local-env-file) from 1Password Environments are only available on macOS and Linux. Windows is not yet supported — Cursor will automatically skip validations on Windows.
 
