@@ -1,7 +1,7 @@
 {
   "name": "1password",
   "version": "1.0.0",
-  "description": "1Password integration for Cursor to secure your development workflow with automated environment validation, secret management, and developer tooling.",
+  "description": "1Password plugin for Cursor that secures your development workflows by validating locally mounted .env files from 1Password Environments and blocking commands when required files are missing or invalid.",
   "author": {
     "name": "1Password"
   },
