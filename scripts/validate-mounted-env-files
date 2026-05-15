@@ -2,33 +2,17 @@
 
 set -euo pipefail
 
-# On Windows, if Bash runs this file (Git Bash, MSYS, Cygwin, etc.), return allow and skip validation
-# Cursor on Windows normally runs the .cmd file instead; this is for when Bash runs it.
-WIN_SKIP_MSG='1Password Environments are not currently supported on Windows. Environment validation was skipped.'
-_esc() { printf '%s' "$1" | sed 's/\\/\\\\/g;s/"/\\"/g'; }
-WIN_SKIP_JSON=$(printf '%s' "{\"permission\":\"allow\",\"agent_message\":\"$(_esc "$WIN_SKIP_MSG")\",\"user_message\":\"$(_esc "$WIN_SKIP_MSG")\"}")
-
-case "$(uname -s 2>/dev/null)" in
-  MINGW* | MSYS* | CYGWIN*)
-    cat >/dev/null 2>&1 || true
-    printf '%s\n' "$WIN_SKIP_JSON"
-    exit 0
-    ;;
-esac
-
-unset -f _esc 2>/dev/null || true
-
 # ============================================================================
 # TABLE OF CONTENTS
 # ============================================================================
 #
 # - Global Variables
 # - Core Utility Functions (logging, JSON escaping)
-# - System & Path Utility Functions (OS detection, path normalization)
+# - System & Path Utility Functions (uname_platform, path normalization)
 # - 1Password Database Functions (finding and querying database)
 # - Mount Parsing & Validation Functions (parsing mount data, validation)
 # - TOML Parsing Functions
-# - Main Execution Logic
+# - Main Execution Logic (early platform exit must run before stdin is read)
 # - Permission Decision Logic
 #
 # ============================================================================
@@ -155,17 +139,22 @@ EOF
 # SYSTEM & PATH UTILITY FUNCTIONS
 # ============================================================================
 
-# Detect operating system
-detect_os() {
-    case "$(uname -s)" in
+# Classify kernel for DB paths and early platform skip.
+uname_platform() {
+    case "$(uname -s 2>/dev/null || echo "")" in
         Darwin*)
             echo "macos"
             ;;
         Linux*)
             echo "unix"
             ;;
+        MINGW* | MSYS* | CYGWIN*)
+            echo "windows_bash"
+            ;;
+        FreeBSD*)
+            echo "freebsd"
+            ;;
         *)
-            log "Warning: Unsupported OS: $(uname -s)"
             echo "unknown"
             ;;
     esac
@@ -586,6 +575,20 @@ parse_toml_mount_paths() {
 # MAIN EXECUTION LOGIC
 # ============================================================================
 
+# Unsupported platforms: return allow JSONand exit.
+case "$(uname_platform)" in
+  windows_bash | freebsd)
+    UNSUPPORTED_PLATFORM_SKIP_MSG='1Password Environments local .env validation is only supported on macOS and Linux. Validation was skipped.'
+    _skip_msg_esc=$(escape_json_string "$UNSUPPORTED_PLATFORM_SKIP_MSG")
+    _skip_json=$(printf '%s' "{\"permission\":\"allow\",\"agent_message\":\"${_skip_msg_esc}\",\"user_message\":\"${_skip_msg_esc}\"}")
+    unset _skip_msg_esc
+    cat >/dev/null 2>/dev/null || true
+    printf '%s\n' "$_skip_json"
+    unset _skip_json
+    exit 0
+    ;;
+esac
+
 # Query 1Password database and check mounts
 log "Checking for local .env files mounted by 1Password..."
 
@@ -613,7 +616,11 @@ fi
 log "Found ${#workspace_roots_array[@]} workspace root(s) to validate"
 
 # Query 1Password database once (shared across all workspace roots)
-os_type=$(detect_os)
+os_type=$(uname_platform)
+if [[ "$os_type" != "macos" && "$os_type" != "unix" ]]; then
+    log "Warning: Unsupported OS: $(uname -s 2>/dev/null || echo unknown)"
+    os_type="unknown"
+fi
 db_path=""
 mount_hex_data=""
 
