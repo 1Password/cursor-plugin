@@ -139,22 +139,19 @@ EOF
 # SYSTEM & PATH UTILITY FUNCTIONS
 # ============================================================================
 
-# Classify kernel for DB paths and early platform skip.
+# Classify kernel: returns "macos", "unix", or "unknown".
+# "unknown" triggers the early-exit allow response (before stdin is read)
+# so unsupported platforms skip validation entirely.
 uname_platform() {
-    case "$(uname -s 2>/dev/null || echo "")" in
+    case "$(uname -s)" in
         Darwin*)
             echo "macos"
             ;;
         Linux*)
             echo "unix"
             ;;
-        MINGW* | MSYS* | CYGWIN*)
-            echo "windows_bash"
-            ;;
-        FreeBSD*)
-            echo "freebsd"
-            ;;
         *)
+            log "Warning: Unsupported OS: $(uname -s)"
             echo "unknown"
             ;;
     esac
@@ -576,18 +573,15 @@ parse_toml_mount_paths() {
 # ============================================================================
 
 # Unsupported platforms: return allow JSON and exit.
-case "$(uname_platform)" in
-  windows_bash | freebsd)
+os_type=$(uname_platform)
+if [[ "$os_type" == "unknown" ]]; then
     UNSUPPORTED_PLATFORM_SKIP_MSG='1Password Environments local .env validation is only supported on macOS and Linux. Validation was skipped.'
     _skip_msg_esc=$(escape_json_string "$UNSUPPORTED_PLATFORM_SKIP_MSG")
     _skip_json=$(printf '%s' "{\"permission\":\"allow\",\"agent_message\":\"${_skip_msg_esc}\",\"user_message\":\"${_skip_msg_esc}\"}")
-    unset _skip_msg_esc
     cat >/dev/null 2>/dev/null || true
     printf '%s\n' "$_skip_json"
-    unset _skip_json
     exit 0
-    ;;
-esac
+fi
 
 # Query 1Password database and check mounts
 log "Checking for local .env files mounted by 1Password..."
@@ -616,19 +610,12 @@ fi
 log "Found ${#workspace_roots_array[@]} workspace root(s) to validate"
 
 # Query 1Password database once (shared across all workspace roots)
-os_type=$(uname_platform)
-if [[ "$os_type" != "macos" && "$os_type" != "unix" ]]; then
-    log "Warning: Unsupported OS: $(uname -s 2>/dev/null || echo unknown)"
-    os_type="unknown"
-fi
 db_path=""
 mount_hex_data=""
 
-if [[ "$os_type" != "unknown" ]]; then
-    db_path=$(find_1password_db "$os_type")
-    if [[ -n "$db_path" ]]; then
-        mount_hex_data=$(query_mounts "$db_path")
-    fi
+db_path=$(find_1password_db "$os_type")
+if [[ -n "$db_path" ]]; then
+    mount_hex_data=$(query_mounts "$db_path")
 fi
 
 # Process each workspace root
