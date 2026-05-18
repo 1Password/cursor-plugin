@@ -11,7 +11,7 @@ For more on 1Password's developer tools, see the [1Password Developer Documentat
 - [Cursor](https://cursor.com)
 - [sqlite3](https://www.sqlite.org/) installed and available in your `PATH` (pre-installed on macOS; install via your package manager on Linux)
 
-> **Note:** [Local `.env` files](https://developer.1password.com/docs/environments/local-env-file) from 1Password Environments are only available on macOS and Linux. Windows is not yet supported — Cursor will automatically skip validations on Windows.
+> **Note:** 1Password Environments local `.env` mounts only apply on **macOS and Linux**. **`hooks.json`** invokes **`./scripts/validate-mounted-env-files`** with no extension. On **macOS / Linux**, that runs the **Bash** script. On **Windows** the shell looks for a real file by trying suffixes from **`PATHEXT`** until one matches on disk. That yields **`validate-mounted-env-files.cmd`**, which returns **`allow`** and skips validation so agent shells are not blocked.
 
 ## Installation and Setup
 
@@ -107,7 +107,7 @@ For each file, the hook checks:
 **Cursor Execution Log**
 
 1. Open **Cursor Settings** > **Hooks** > **Execution Log**.
-2. Look for `beforeShellExecution` entries tied to `validate-mounted-env-files.sh`.
+2. Look for `beforeShellExecution` entries tied to `validate-mounted-env-files`.
 3. Each entry shows the hook's permission decision and any error messages.
 
 **Manual Testing with Debug Mode**
@@ -115,7 +115,7 @@ For each file, the hook checks:
 Run the hook directly with `DEBUG=1` to see detailed output on stderr:
 
 ```bash
-DEBUG=1 echo '{"command": "echo test", "workspace_roots": ["/path/to/your/project"]}' | ./scripts/validate-mounted-env-files.sh
+DEBUG=1 echo '{"command": "echo test", "workspace_roots": ["/path/to/your/project"]}' | ./scripts/validate-mounted-env-files
 ```
 
 **Log File**
@@ -133,7 +133,8 @@ When not running in debug mode, the hook writes logs to `/tmp/1password-cursor-h
 ├── assets/
 │   └── logo.svg                       # Plugin logo
 ├── scripts/
-│   └── validate-mounted-env-files.sh  # Validation hook script
+│   ├── validate-mounted-env-files      # Bash hook (macOS / Linux)
+│   └── validate-mounted-env-files.cmd  # Windows cmd wrapper returns allow (validation skipped)
 ├── LICENSE
 └── README.md
 ```
@@ -141,7 +142,7 @@ When not running in debug mode, the hook writes logs to `/tmp/1password-cursor-h
 ## Resources
 
 - [Validate local `.env` files with Cursor Agent](https://developer.1password.com/docs/environments/cursor-hook-validate/) — full setup guide on the 1Password Developer site
-- [1Password Cursor Hooks](https://github.com/1Password/cursor-hooks) — the original hooks repository this plugin is based on
+- [1Password Agent Hooks](https://github.com/1Password/agent-hooks) — the original hooks repository this plugin is based on
 - [1Password Environments](https://developer.1password.com/docs/environments) — documentation for 1Password's environment and secrets management
 - [1Password Local `.env` Files](https://developer.1password.com/docs/environments/local-env-file) — how local `.env` file mounting works
 - [Cursor Hooks Documentation](https://cursor.com/docs/agent/hooks) — how Cursor hooks work

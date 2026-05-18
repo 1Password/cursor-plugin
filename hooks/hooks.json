@@ -3,7 +3,7 @@
   "hooks": {
     "beforeShellExecution": [
       {
-        "command": "./scripts/validate-mounted-env-files.sh"
+        "command": "./scripts/validate-mounted-env-files"
       }
     ]
   }
