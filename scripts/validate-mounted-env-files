@@ -14,6 +14,7 @@ set -euo pipefail
 # - TOML Parsing Functions
 # - Main Execution Logic (early platform exit must run before stdin is read)
 # - Permission Decision Logic
+# - Telemetry (opt-in; off by default; gated on a signal file from OPH)
 #
 # ============================================================================
 
@@ -37,6 +38,22 @@ required_mounts=()
 permission="allow"
 # The message for the agent to interpret if the permission is denied.
 agent_message=""
+
+# Telemetry: which validation mode was used (set when entering the branch).
+resolved_mode=""
+# Telemetry: number of workspace-relevant mounts checked during this run.
+total_mount_count=0
+# Telemetry: derived deny reason for the agent_hook_execution event.
+deny_reason=""
+
+# Source the shared telemetry helpers. Fail-open if missing (telemetry is
+# optional; the hook must keep working even if the lib is absent).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/telemetry.sh
+source "${SCRIPT_DIR}/lib/telemetry.sh" 2>/dev/null || true
+
+# Record start time for hook duration measurement.
+start_ms=$(current_time_ms 2>/dev/null || echo "0")
 
 # ============================================================================
 # CORE UTILITY FUNCTIONS
@@ -133,6 +150,69 @@ EOF
 }
 EOF
     fi
+}
+
+# Derive duration + deny_reason and write the telemetry events in a detached
+# background subshell, then return immediately. Safe to call from any exit path
+# (it fails open if the telemetry helpers are unavailable), and it must be
+# called exactly once per invocation so events map 1:1 to hook executions.
+emit_telemetry_async() {
+    local end_ms duration_ms
+    end_ms=$(current_time_ms 2>/dev/null || echo "$start_ms")
+    duration_ms=$((end_ms - start_ms))
+
+    # Three-bucket deny_reason: the "both" case maps to its own value so the
+    # dashboard can distinguish "configuration drift" (some mounts missing on
+    # disk, others toggled off in 1Password) from each pure case.
+    if [[ "$permission" == "deny" ]]; then
+        if [[ ${#all_missing_invalid[@]} -gt 0 ]] && [[ ${#disabled_mounts[@]} -gt 0 ]]; then
+            deny_reason="file_missing_and_disabled"
+        elif [[ ${#all_missing_invalid[@]} -gt 0 ]]; then
+            deny_reason="file_missing"
+        elif [[ ${#disabled_mounts[@]} -gt 0 ]]; then
+            deny_reason="file_disabled"
+        fi
+    fi
+
+    # Detached background subshell so the script exits as soon as the response
+    # has been written to Cursor. The `>/dev/null 2>&1` redirect is load-bearing:
+    # without it, the subshell inherits the script's stdout pipe to Cursor, which
+    # would defeat the backgrounding (Cursor's `read(stdout)` waits for EOF).
+    (
+        # Resolve the hook version from the plugin manifest here, off the hot
+        # path (it is only needed for the telemetry write).
+        local plugin_version="unknown"
+        local manifest="${SCRIPT_DIR}/../.cursor-plugin/plugin.json"
+        if [[ -f "$manifest" ]]; then
+            local manifest_version
+            manifest_version=$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$manifest" \
+                 | head -1 \
+                 | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/' 2>/dev/null \
+                 || echo "")
+            [[ -n "$manifest_version" ]] && plugin_version="$manifest_version"
+        fi
+
+        write_execution_event \
+            "1password-validate-mounted-env-files" \
+            "$plugin_version" \
+            "cursor" \
+            "before_shell_execution" \
+            "$permission" \
+            "$deny_reason" \
+            "$duration_ms" \
+            "$resolved_mode" \
+            "$total_mount_count"
+
+        # The Cursor plugin marketplace does not expose an install lifecycle
+        # hook, so we detect installation via a sentinel keyed by
+        # (client, hook_name, hook_version). The install event fires exactly
+        # once per (cursor, 1password-validate-mounted-env-files, version),
+        # so an upgrade or reinstall produces a fresh install event.
+        emit_plugin_marketplace_install_event_once \
+            "cursor" \
+            "1password-validate-mounted-env-files" \
+            "$plugin_version"
+    ) >/dev/null 2>&1 &
 }
 
 # ============================================================================
@@ -586,8 +666,12 @@ fi
 # Query 1Password database and check mounts
 log "Checking for local .env files mounted by 1Password..."
 
-# Read JSON input from stdin and extract workspace_roots
-workspace_roots_input=$(parse_json_workspace_roots)
+# Read JSON input from stdin and extract workspace_roots.
+# `|| true`: parse_json_workspace_roots ends in a grep that exits non-zero when
+# the input has no workspace_roots; under `set -euo pipefail` that would abort
+# the script (emitting no decision) before the fail-open branch below. Swallow
+# it so empty/absent input reaches that branch and still returns an "allow".
+workspace_roots_input=$(parse_json_workspace_roots) || true
 workspace_roots_array=()
 
 # Build array of workspace roots
@@ -604,6 +688,7 @@ done <<< "$workspace_roots_input"
 if [[ ${#workspace_roots_array[@]} -eq 0 ]]; then
     log "No workspace_roots found in JSON input, skipping validation"
     output_response
+    emit_telemetry_async
     exit 0
 fi
 
@@ -632,6 +717,7 @@ for workspace_root in "${workspace_roots_array[@]}"; do
 
         if has_toml_mount_paths_field "$toml_file"; then
             use_configured_mode=true
+            resolved_mode="configured"
             log "environments.toml has mount_paths field defined - validating specified mounts"
 
             # Parse and validate TOML mount paths
@@ -699,6 +785,7 @@ for workspace_root in "${workspace_roots_array[@]}"; do
         # Check each TOML-specified mount
         if [[ ${#toml_paths_array[@]} -gt 0 ]]; then
             for resolved_path in "${toml_paths_array[@]}"; do
+                ((total_mount_count++)) || true
                 log "Checking required local .env file from TOML: \"${resolved_path}\""
 
                 # First, check if it's in the database and what its status is
@@ -763,6 +850,7 @@ for workspace_root in "${workspace_roots_array[@]}"; do
         fi
     else
         # Default mode: Check all local .env files within this workspace from 1Password database
+        resolved_mode="default"
         log "Using default mode: checking all local .env files in workspace ${workspace_root} from 1Password database"
 
         if [[ -z "$mount_hex_data" ]]; then
@@ -795,6 +883,8 @@ for workspace_root in "${workspace_roots_array[@]}"; do
                     log "Local .env file does not belong to workspace ${workspace_root}, skipping"
                     continue
                 fi
+
+                ((total_mount_count++)) || true
 
                 if [[ "$is_enabled" == "true" ]]; then
                     if [[ ! -e "$mount_path" ]] || [[ ! -p "$mount_path" ]]; then
@@ -908,4 +998,14 @@ fi
 
 # Output JSON response with permission decision
 output_response
+
+# ============================================================================
+# TELEMETRY EMISSION (off the hot path)
+# ============================================================================
+# Emit duration, decision, mode, mount count and the once-per-version install
+# event in a detached background subshell. Mirrors the early-exit paths above
+# so every invocation is recorded exactly once, never on the latency-sensitive
+# path before the decision reaches Cursor.
+emit_telemetry_async
+
 exit 0

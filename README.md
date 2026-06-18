@@ -139,6 +139,23 @@ When not running in debug mode, the hook writes logs to `/tmp/1password-cursor-h
 └── README.md
 ```
 
+## Telemetry
+
+The plugin emits **opt-in** telemetry so 1Password can understand plugin adoption and the prevalence of common failure modes (missing files, disabled mounts). Two event types are emitted:
+
+- `agent_hook_execution` — fired once per hook invocation; carries the hook name, plugin version, client (`cursor`), bucketed duration, decision (`allow`/`deny`), reason for deny, validation mode (`default`/`configured`), and a count of mounts checked.
+- `agent_hook_install` — fired once per `(hook_name, plugin_version)` on the first hook run after installation or upgrade; `install_method` is `plugin_marketplace`.
+
+**Opt-in only.** Events are written only when the file `~/.config/1Password/telemetry-enabled` exists. The 1Password desktop app creates and removes this file based on your in-app telemetry preference (Settings → Manage Account → Data Usage). If the app has never run, or all accounts have opted out, no events are written.
+
+**No PII.** Events contain hook name and version, client, decision, bucketed duration, mode, mount count, and a deny reason. No paths, file contents, environment names, or workspace paths are recorded.
+
+**Fail-open.** Telemetry runs in a detached background subshell after the hook has returned its decision to Cursor. Any failure (missing helpers, disk full, permission denied) is silently swallowed — telemetry can never affect a hook decision.
+
+**Where events are written.** Events are appended as JSON lines to `~/.config/1Password/data/hook-events/events.jsonl`. The 1Password desktop app periodically ingests this file and forwards events to 1Password's telemetry pipeline. Telemetry only fires on macOS and Linux; the Windows stub does not emit events.
+
+**To disable.** Open the 1Password desktop app → Settings → Manage Account → Data Usage and turn off product telemetry.
+
 ## Resources
 
 - [Validate local `.env` files with Cursor Agent](https://developer.1password.com/docs/environments/cursor-hook-validate/) — full setup guide on the 1Password Developer site
