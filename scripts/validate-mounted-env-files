@@ -660,6 +660,8 @@ if [[ "$os_type" == "unknown" ]]; then
     _skip_json=$(printf '%s' "{\"permission\":\"allow\",\"agent_message\":\"${_skip_msg_esc}\",\"user_message\":\"${_skip_msg_esc}\"}")
     cat >/dev/null 2>/dev/null || true
     printf '%s\n' "$_skip_json"
+
+    emit_telemetry_async
     exit 0
 fi
 
