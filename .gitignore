@@ -1,0 +1,4 @@
+.DS_Store
+
+# Local dev hook wiring (use when team policy blocks local plugin imports)
+.cursor/hooks.json

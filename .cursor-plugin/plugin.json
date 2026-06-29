@@ -1,11 +1,11 @@
 {
   "name": "1password",
-  "version": "1.1.0",
-  "description": "1Password plugin for Cursor — securely manage development secrets.",
+  "version": "1.2.0",
+  "description": "1Password plugin for Cursor — validate .env mounts and manage Developer Environments via MCP. Secret values stay in 1Password.",
   "author": {
     "name": "1Password"
   },
-  "homepage": "https://1password.com",
+  "homepage": "https://developer.1password.com/docs/environments",
   "repository": "https://github.com/1Password/cursor-plugin",
   "license": "MIT",
   "keywords": [
@@ -16,8 +16,12 @@
     "env",
     "dotenv",
     "hooks",
-    "validation"
+    "validation",
+    "mcp",
+    "developer-environments"
   ],
   "logo": "assets/logo.svg",
-  "hooks": "hooks/hooks.json"
+  "hooks": "hooks/hooks.json",
+  "skills": "./skills/",
+  "mcpServers": "./mcp.json"
 }
