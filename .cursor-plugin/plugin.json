@@ -20,7 +20,7 @@
     "mcp",
     "developer-environments"
   ],
-  "logo": "assets/logo.svg",
+  "logo": "assets/icon.svg",
   "hooks": "hooks/hooks.json",
   "skills": "./skills/",
   "mcpServers": "./mcp.json"
