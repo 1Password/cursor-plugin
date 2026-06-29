@@ -9,12 +9,12 @@
     "preToolUse": [
       {
         "matcher": "Read",
-        "command": "./scripts/deny-fifo-env-read"
+        "command": "./scripts/deny-env-file-read"
       }
     ],
     "beforeReadFile": [
       {
-        "command": "./scripts/deny-fifo-env-read"
+        "command": "./scripts/deny-env-file-read"
       }
     ]
   }

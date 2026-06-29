@@ -150,7 +150,7 @@ If parsing via shell is blocked, ask the user to paste `KEY=value` lines (withou
 - If the MCP server is unavailable, tell the user to enable the 1Password Labs MCP Server experiment in the desktop app via `onepassword://settings/labs`.
 - If the Labs setting is missing, the account may not have the required `ai-local-mcp-server` feature flag.
 - If `create_local_env_file` fails, confirm the user is on macOS or Linux. Local `.env` mounts are documented for macOS and Linux only.
-- If the agent appears stuck while "reading" a `.env` file, it is usually waiting on Cursor's sensitive-file approval UI (not a 1Password or FIFO issue for plain files). Scroll up in chat for an approval card, send a follow-up message to unblock, or use the shell parsing step above instead of Read.
+- If the agent appears stuck while "reading" a `.env` file, Cursor is likely waiting on sensitive-file approval that never renders. The plugin's Read hooks deny `.env` reads (plain files and FIFO mounts) and redirect to shell parsing — if you still see a hang, scroll up for a hidden approval card or send a follow-up message to unblock.
 
 ## Safety
 
