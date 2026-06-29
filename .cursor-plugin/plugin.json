@@ -5,7 +5,7 @@
   "author": {
     "name": "1Password"
   },
-  "homepage": "https://developer.1password.com/docs/environments",
+  "homepage": "https://www.1password.dev/environments",
   "repository": "https://github.com/1Password/cursor-plugin",
   "license": "MIT",
   "keywords": [
