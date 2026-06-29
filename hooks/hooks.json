@@ -5,6 +5,17 @@
       {
         "command": "./scripts/validate-mounted-env-files"
       }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "Read",
+        "command": "./scripts/deny-fifo-env-read"
+      }
+    ],
+    "beforeReadFile": [
+      {
+        "command": "./scripts/deny-fifo-env-read"
+      }
     ]
   }
 }

@@ -14,7 +14,7 @@ Use the 1Password MCP server for all 1Password Developer Environment work.
 - The user asks to configure repo environment variables, API keys, tokens, credentials, or secrets securely with 1Password.
 - The user wants to list or compare Environment variable names without exposing secret values.
 
-Do not use this skill for unrelated password-manager tasks, arbitrary local `.env` file parsing, or non-1Password secret stores unless the user asks to migrate that configuration into 1Password.
+Do not use this skill for unrelated password-manager tasks or non-1Password secret stores. Use the **Import from a plain-text `.env` file** flow below when the user asks to migrate an existing on-disk `.env` into 1Password.
 
 ## Prerequisites
 
@@ -97,6 +97,27 @@ Most operations start here. Run this sequence at the beginning of any turn unles
 4. Store the `environmentId` from the response for any follow-on operations.
 5. If the user wants to add variables immediately, proceed to the "Add or update variables" flow.
 
+### Import from a plain-text `.env` file
+
+Use when the user asks to create a new 1Password Environment from an existing **regular file** on disk (for example `.env` or `.env.local`). There is no MCP "import from file" tool — variables must be parsed locally, then sent with `append_variables`.
+
+1. Confirm the source path and that the user wants to migrate variables into 1Password.
+2. Verify the source is a regular file, not a 1Password mount:
+   - Run `test -f "$path" && ! test -p "$path"` in the shell.
+   - If the path is a named pipe (FIFO), stop. That path is a 1Password mount — use `list_local_env_files` and MCP tools instead. Never read a mounted `.env`.
+3. **Do not use the Read tool on `.env` paths.** Cursor treats env files as sensitive and the Read tool often blocks or appears to hang (waiting for approval that may not render). Parse the file with a shell command instead:
+
+   ```bash
+   grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$path" | grep -v '^#'
+   ```
+
+   Strip optional surrounding quotes from values in your head before calling MCP; do not paste raw output into chat.
+4. Call `authenticate`, then `create_environment` (or resolve an existing Environment if the user named one).
+5. Call `append_variables` with the parsed name/value pairs. Pass values to MCP only — do not echo secret values in chat. Mark secrets with `concealed: true`.
+6. Optionally offer `create_local_env_file` to replace the plaintext file with a 1Password mount, and suggest removing or gitignoring the old plaintext source.
+
+If parsing via shell is blocked, ask the user to paste `KEY=value` lines (without values in follow-up messages if they prefer), or to confirm approval if Cursor shows "Waiting for approval" on a file read.
+
 ### Rename an Environment
 
 1. Authenticate and resolve the Environment (see above).
@@ -129,11 +150,13 @@ Most operations start here. Run this sequence at the beginning of any turn unles
 - If the MCP server is unavailable, tell the user to enable the 1Password Labs MCP Server experiment in the desktop app via `onepassword://settings/labs`.
 - If the Labs setting is missing, the account may not have the required `ai-local-mcp-server` feature flag.
 - If `create_local_env_file` fails, confirm the user is on macOS or Linux. Local `.env` mounts are documented for macOS and Linux only.
+- If the agent appears stuck while "reading" a `.env` file, it is usually waiting on Cursor's sensitive-file approval UI (not a 1Password or FIFO issue for plain files). Scroll up in chat for an approval card, send a follow-up message to unblock, or use the shell parsing step above instead of Read.
 
 ## Safety
 
-- Do not reveal, log, or echo secret values.
-- Do not read a mounted `.env` file just to verify it exists; use the MCP tools instead.
+- Do not reveal, log, or echo secret values in chat.
+- Do not use the Read tool on `.env` paths — parse plain-text sources via shell when migrating into 1Password.
+- Do not read a **mounted** `.env` file (1Password FIFO) for any reason; use MCP tools instead.
 - Ask before creating or modifying Environment variables unless the user's request is already explicit.
 - Treat local `.env` mounts as sensitive even though 1Password does not persist plaintext secret contents to disk.
 - If a user pasted a secret into the chat, avoid repeating it back; refer to it by variable name.
