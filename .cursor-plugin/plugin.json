@@ -1,7 +1,7 @@
 {
   "name": "1password",
-  "version": "1.2.0",
-  "description": "1Password plugin for Cursor — validate .env mounts and manage Developer Environments via MCP. Secret values stay in 1Password.",
+  "version": "1.2.1",
+  "description": "1Password plugin for Cursor — hooks, bundled agent skill, and MCP config for Developer Environments and local .env mounts. Secret values stay in 1Password.",
   "author": {
     "name": "1Password"
   },

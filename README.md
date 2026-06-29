@@ -1,6 +1,8 @@
 # 1Password Plugin for Cursor
 
-The official [1Password](https://1password.com) plugin for [Cursor](https://cursor.com). It validates locally mounted `.env` files before shell commands run and connects Cursor to the 1Password MCP server to manage [Developer Environments](https://developer.1password.com/docs/environments). Secret values stay in 1Password — the agent sees variable names and mount paths, not secret contents.
+The official [1Password](https://1password.com) plugin for [Cursor](https://cursor.com). It ships three pieces that work together: **hooks** that validate locally mounted `.env` files, an **agent skill** with the complete Developer Environment workflow, and **MCP configuration** for the 1Password desktop app server. Secret values stay in 1Password — the agent sees variable names and mount paths, not secret contents.
+
+Install the **plugin** (not a hand-configured MCP entry alone). The bundled `1password-environments` skill is the authoritative agent workflow; the MCP server's built-in documentation resources cover tool basics only and omit import-and-mount steps.
 
 For more on 1Password's developer tools, see the [1Password Developer Documentation](https://developer.1password.com).
 
@@ -28,7 +30,7 @@ Before using this plugin, you'll need to configure your secrets in 1Password:
 
 ### Step 2: Install the plugin
 
-Install from the [Cursor Marketplace](https://cursor.com/marketplace):
+Install from the [Cursor Marketplace](https://cursor.com/marketplace). This registers hooks, the `1password-environments` agent skill, and `mcp.json` together. Do not add the 1Password MCP server manually in user settings instead of installing the plugin — agents will get MCP tools without the skill workflow.
 
 1. Open **Cursor Settings** > **Plugins**.
 2. Search for **1password**.
@@ -42,9 +44,9 @@ Or install directly:
 /add-plugin 1password
 ```
 
-### Step 3: Enable MCP (optional)
+### Step 3: Enable MCP in 1Password (required for Environment management)
 
-To use Developer Environments MCP tools, enable the **MCP Server** experiment in 1Password: open **Settings → Labs** (or use `onepassword://settings/labs`) and turn on **MCP Server**.
+Enable the **MCP Server** experiment in the 1Password desktop app: open **Settings → Labs** (or use `onepassword://settings/labs`) and turn on **MCP Server**. The plugin's `mcp.json` connects Cursor to that server after this step.
 
 The MCP server binary on macOS:
 
@@ -144,9 +146,11 @@ DEBUG=1 echo '{"command": "echo test", "workspace_roots": ["/path/to/your/projec
 
 When not running in debug mode, the hook writes logs to `/tmp/1password-cursor-hooks.log`. Log entries include timestamps and details about 1Password queries, validation results, and permission decisions.
 
-### MCP
+### MCP and agent skill
 
-Connect Cursor to the local 1Password MCP server to manage Developer Environments and local `.env` mounts. The bundled skill guides the agent through authentication, environment selection, variable inspection, and mount creation.
+The plugin connects Cursor to the local 1Password MCP server and bundles the **`1password-environments`** skill (`skills/1password-environments/SKILL.md`). Agents MUST read that skill before calling MCP tools.
+
+The MCP server exposes `1password://docs/getting-started` and `1password://docs/environments-guide`, but those resources are **not** sufficient for agent workflows — they omit importing a plain `.env` file and mounting at the source path by default. The bundled skill defines the complete workflow, including import, append, and mount.
 
 #### Example prompts
 
@@ -154,6 +158,8 @@ Connect Cursor to the local 1Password MCP server to manage Developer Environment
 - "Mount my staging Environment as `.env` in this repo"
 - "What variables are in my production Environment?"
 - "Create a new Environment called `my-app-dev`"
+- "Create an Environment from my project `.env` file"
+- "Import `.env` into 1Password and mount it here"
 - "Add a placeholder for my OpenAI API key"
 
 #### MCP tools
@@ -169,9 +175,7 @@ Connect Cursor to the local 1Password MCP server to manage Developer Environment
 | `create_local_env_file` | Mount an Environment as a local `.env` file |
 | `list_local_env_files` | List existing local `.env` mounts for an Environment |
 
-The server also exposes documentation resources at `1password://docs/getting-started` and `1password://docs/environments-guide`.
-
-Confirm the MCP server is connected in **Cursor Settings → MCP** after enabling the Labs experiment in 1Password.
+Confirm the MCP server is connected in **Cursor Settings → MCP** after installing the plugin and enabling the Labs experiment in 1Password.
 
 ## Plugin Structure
 
@@ -183,7 +187,8 @@ cursor-plugin/
 │   └── hooks.json                     # Hook event configuration
 ├── skills/
 │   └── 1password-environments/
-│       └── SKILL.md                   # Agent skill for MCP workflows
+│       ├── SKILL.md                   # Agent skill for MCP workflows
+│       └── reference.md               # Mount conflict and troubleshooting
 ├── mcp.json                           # MCP server configuration
 ├── assets/
 │   ├── logo.svg                       # Plugin logo
