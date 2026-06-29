@@ -2,7 +2,7 @@
 
 The official [1Password](https://1password.com) plugin for [Cursor](https://cursor.com). It ships three pieces that work together: **hooks** that validate locally mounted `.env` files, an **agent skill** with the complete Developer Environment workflow, and **MCP configuration** for the 1Password desktop app server. Secret values stay in 1Password — the agent sees variable names and mount paths, not secret contents.
 
-Install the **plugin** (not a hand-configured MCP entry alone). The bundled `1password-environments` skill is the authoritative agent workflow; the MCP server's built-in documentation resources cover tool basics only and omit import-and-mount steps.
+Install the **plugin** (not a hand-configured MCP entry alone). The bundled `1password-environments` skill and rule are the authoritative agent workflow; the MCP server's built-in documentation resources cover tool basics only and omit import-and-mount steps.
 
 For more on 1Password's developer tools, see the [1Password Developer Documentation](https://developer.1password.com).
 
@@ -148,7 +148,9 @@ When not running in debug mode, the hook writes logs to `/tmp/1password-cursor-h
 
 ### MCP and agent skill
 
-The plugin connects Cursor to the local 1Password MCP server and bundles the **`1password-environments`** skill (`skills/1password-environments/SKILL.md`). Agents MUST read that skill before calling MCP tools.
+The plugin connects Cursor to the local 1Password MCP server and bundles the **`1password-environments`** skill and **rule** (`skills/1password-environments/SKILL.md`, `rules/1password-environments.mdc`). Agents MUST read that skill before calling MCP tools.
+
+A **`stop` / `afterMCPExecution` hook** (`scripts/nudge-1password-import`) injects the remaining import steps when an agent stops after `append_variables` without mounting — the common failure mode for `.env` imports.
 
 The MCP server exposes `1password://docs/getting-started` and `1password://docs/environments-guide`, but those resources are **not** sufficient for agent workflows — they omit importing a plain `.env` file and mounting at the source path by default. The bundled skill defines the complete workflow, including import, append, and mount.
 
@@ -189,13 +191,17 @@ cursor-plugin/
 │   └── 1password-environments/
 │       ├── SKILL.md                   # Agent skill for MCP workflows
 │       └── reference.md               # Mount conflict and troubleshooting
+├── rules/
+│   └── 1password-environments.mdc     # Agent rule (activates on 1Password MCP work)
 ├── mcp.json                           # MCP server configuration
 ├── assets/
 │   ├── logo.svg                       # Plugin logo
 │   └── icon.svg
 ├── scripts/
 │   ├── validate-mounted-env-files      # Bash hook (macOS / Linux)
-│   └── validate-mounted-env-files.cmd  # Windows cmd wrapper returns allow (validation skipped)
+│   ├── validate-mounted-env-files.cmd  # Windows cmd wrapper returns allow (validation skipped)
+│   ├── deny-env-file-read              # Blocks Read on secret .env paths
+│   └── nudge-1password-import          # Nudges agents to finish .env import + mount
 ├── LICENSE
 └── README.md
 ```

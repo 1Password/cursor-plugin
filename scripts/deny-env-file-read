@@ -26,13 +26,11 @@ _ENV_READ_ALLOWLIST = frozenset(
 _READ_TOOL_NAME = re.compile(r"^Read(?: File V2)?$", re.IGNORECASE)
 
 DENY_MESSAGE = (
-    "Do not use the Read tool on .env files. Cursor often blocks or hangs on "
-    ".env reads — including plain text files on disk, not only 1Password mounts. "
-    "Mounted .env files are also named pipes that block until secrets stream. "
-    "To import variables into 1Password, parse with a shell command such as "
-    'grep -E \'^[A-Za-z_][A-Za-z0-9_]*=\' "$path" | grep -v \'^#\', ask the '
-    "user to paste KEY=value lines, or use list_local_env_files and MCP tools "
-    "for existing 1Password mounts."
+    "Do not use the Read tool on .env files. Parse with shell grep instead, "
+    "then finish the 1password-environments import workflow: append_variables, "
+    "create_local_env_file at the source path, verify with list_local_env_files. "
+    'Example: grep -E \'^[A-Za-z_][A-Za-z0-9_]*=\' "$path" | grep -v \'^#\'. '
+    "For mount conflicts see the plugin skill reference.md."
 )
 
 

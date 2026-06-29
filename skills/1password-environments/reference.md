@@ -1,5 +1,9 @@
 # 1Password Environments — reference
 
+## Import completion nudges (plugin hook)
+
+The plugin runs `scripts/nudge-1password-import` after relevant 1Password MCP calls and on agent stop. If you appended variables during an import but have not called `create_local_env_file`, the hook injects the next required steps. Treat that as mandatory — do not reply to the user until the mount is verified.
+
 ## Mount conflict (Read hook vs shell validation hook)
 
 The Read hook denies `.env` reads; the `beforeShellExecution` hook blocks **all** shell commands when 1Password expects a mount at a path that is missing, disabled, or not a FIFO (for example a plain `.env` still on disk at the mount path). That is a policy deadlock: Read is denied, then shell is denied too.
