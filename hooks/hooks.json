@@ -8,13 +8,15 @@
     ],
     "preToolUse": [
       {
-        "matcher": "Read",
-        "command": "./scripts/deny-env-file-read"
+        "command": "./scripts/deny-env-file-read",
+        "matcher": "Read File V2|Read",
+        "failClosed": true
       }
     ],
     "beforeReadFile": [
       {
-        "command": "./scripts/deny-env-file-read"
+        "command": "./scripts/deny-env-file-read",
+        "failClosed": true
       }
     ]
   }

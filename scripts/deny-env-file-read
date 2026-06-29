@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 
 # Templates without secrets are OK to read for variable names.
@@ -22,6 +23,8 @@ _ENV_READ_ALLOWLIST = frozenset(
     }
 )
 
+_READ_TOOL_NAME = re.compile(r"^Read(?: File V2)?$", re.IGNORECASE)
+
 DENY_MESSAGE = (
     "Do not use the Read tool on .env files. Cursor often blocks or hangs on "
     ".env reads — including plain text files on disk, not only 1Password mounts. "
@@ -31,6 +34,12 @@ DENY_MESSAGE = (
     "user to paste KEY=value lines, or use list_local_env_files and MCP tools "
     "for existing 1Password mounts."
 )
+
+
+def _debug(message: str) -> None:
+    if os.environ.get("DEBUG"):
+        with open("/tmp/1password-cursor-hooks.log", "a", encoding="utf-8") as log:
+            log.write(f"deny-env-file-read: {message}\n")
 
 
 def _file_path_from_payload(data: dict) -> str:
@@ -48,6 +57,22 @@ def _file_path_from_payload(data: dict) -> str:
     return ""
 
 
+def _is_read_event(data: dict) -> bool:
+    hook_event = data.get("hook_event_name")
+    if hook_event == "beforeReadFile":
+        return True
+
+    tool_name = data.get("tool_name")
+    if isinstance(tool_name, str) and _READ_TOOL_NAME.match(tool_name.strip()):
+        return True
+
+    # Some Cursor builds omit tool_name on beforeReadFile-style preToolUse payloads.
+    if data.get("file_path") and not tool_name:
+        return True
+
+    return False
+
+
 def _is_env_secret_path(path: str) -> bool:
     base = os.path.basename(path)
     if base == ".env":
@@ -57,36 +82,51 @@ def _is_env_secret_path(path: str) -> bool:
     return False
 
 
+def _deny() -> None:
+    print(
+        json.dumps(
+            {
+                "permission": "deny",
+                "user_message": DENY_MESSAGE,
+                "agent_message": DENY_MESSAGE,
+            }
+        )
+    )
+    sys.exit(2)
+
+
+def _allow() -> None:
+    print(json.dumps({"permission": "allow"}))
+
+
 def main() -> None:
     raw = sys.stdin.read()
     if not raw.strip():
-        print(json.dumps({"permission": "allow"}))
+        _allow()
         return
 
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
-        print(json.dumps({"permission": "allow"}))
+        _allow()
+        return
+
+    _debug(json.dumps({"event": data.get("hook_event_name"), "tool_name": data.get("tool_name")}))
+
+    if not _is_read_event(data):
+        _allow()
         return
 
     file_path = _file_path_from_payload(data)
     if not file_path or not os.path.exists(file_path):
-        print(json.dumps({"permission": "allow"}))
+        _allow()
         return
 
     if _is_env_secret_path(file_path):
-        print(
-            json.dumps(
-                {
-                    "permission": "deny",
-                    "user_message": DENY_MESSAGE,
-                    "agent_message": DENY_MESSAGE,
-                }
-            )
-        )
-        return
+        _debug(f"deny {file_path}")
+        _deny()
 
-    print(json.dumps({"permission": "allow"}))
+    _allow()
 
 
 if __name__ == "__main__":

@@ -116,7 +116,19 @@ Use when the user asks to create a new 1Password Environment from an existing **
 5. Call `append_variables` with the parsed name/value pairs. Pass values to MCP only — do not echo secret values in chat. Mark secrets with `concealed: true`.
 6. Optionally offer `create_local_env_file` to replace the plaintext file with a 1Password mount, and suggest removing or gitignoring the old plaintext source.
 
-If parsing via shell is blocked, ask the user to paste `KEY=value` lines (without values in follow-up messages if they prefer), or to confirm approval if Cursor shows "Waiting for approval" on a file read.
+**Mount conflict (Read hook vs shell validation hook).** This plugin blocks `.env` reads and recommends shell parsing, but the `beforeShellExecution` hook blocks **all** shell commands when 1Password expects a mount at a path that is missing, disabled, or not a FIFO (for example a plain `.env` still on disk at the mount path). That is a policy deadlock, not a race: Read is denied, then shell is denied too.
+
+If shell parsing fails with a message about missing, invalid, or disabled environment files:
+
+1. Check whether 1Password already has a destination for the same path (`list_local_env_files`, or the 1Password app Destinations tab).
+2. Run `test -p "$path"` — if false while 1Password lists that path, the file is plain text colliding with an expected mount.
+3. Help the user pick a workaround:
+   - Copy the source to a non-mount path and parse that copy (e.g. `cp .env .env.import` then `grep` `.env.import`).
+   - Temporarily set `mount_paths = []` in `.1password/environments.toml` to disable mount validation for this repo.
+   - Fix the mount in 1Password (enable the destination, or remove it until migration finishes).
+   - Paste `KEY=value` lines into chat instead of parsing from disk.
+
+If parsing via shell is blocked for other reasons, ask the user to paste `KEY=value` lines (without values in follow-up messages if they prefer), or to confirm approval if Cursor shows "Waiting for approval" on a file read.
 
 ### Rename an Environment
 
@@ -150,7 +162,7 @@ If parsing via shell is blocked, ask the user to paste `KEY=value` lines (withou
 - If the MCP server is unavailable, tell the user to enable the 1Password Labs MCP Server experiment in the desktop app via `onepassword://settings/labs`.
 - If the Labs setting is missing, the account may not have the required `ai-local-mcp-server` feature flag.
 - If `create_local_env_file` fails, confirm the user is on macOS or Linux. Local `.env` mounts are documented for macOS and Linux only.
-- If the agent appears stuck while "reading" a `.env` file, Cursor is likely waiting on sensitive-file approval that never renders. The plugin's Read hooks deny `.env` reads (plain files and FIFO mounts) and redirect to shell parsing — if you still see a hang, scroll up for a hidden approval card or send a follow-up message to unblock.
+- If shell commands are denied during a plain `.env` import, see **Mount conflict** under "Import from a plain-text `.env` file" — a plain file at a path where 1Password expects a FIFO mount blocks all shell until the mount is fixed or validation is relaxed.
 
 ## Safety
 
