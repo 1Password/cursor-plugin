@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "1password": {
+      "command": "/Applications/1Password.app/Contents/MacOS/1password-mcp",
+      "args": []
+    }
+  }
+}

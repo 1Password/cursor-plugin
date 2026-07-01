@@ -1,6 +1,8 @@
 # 1Password Plugin for Cursor
 
-The official [1Password](https://1password.com) plugin for [Cursor](https://cursor.com). It brings 1Password's secret management capabilities directly into your editor, helping you develop securely without leaving your workflow.
+The official [1Password](https://1password.com) plugin for [Cursor](https://cursor.com). It ships three pieces that work together: **hooks** that validate locally mounted `.env` files, an **agent skill** with the complete Developer Environment workflow, and **MCP configuration** for the 1Password desktop app server. Secret values stay in 1Password — the agent sees variable names and mount paths, not secret contents.
+
+Install the **plugin** (not a hand-configured MCP entry alone). The bundled `1password-environments` skill and rule are the authoritative agent workflow; the MCP server's built-in documentation resources cover tool basics only and omit import-and-mount steps.
 
 For more on 1Password's developer tools, see the [1Password Developer Documentation](https://developer.1password.com).
 
@@ -9,7 +11,11 @@ For more on 1Password's developer tools, see the [1Password Developer Documentat
 - [1Password](https://1password.com) subscription
 - [1Password for Mac or Linux](https://1password.com/downloads)
 - [Cursor](https://cursor.com)
-- [sqlite3](https://www.sqlite.org/) installed and available in your `PATH` (pre-installed on macOS; install via your package manager on Linux)
+
+Additional requirements by feature:
+
+- **Hooks** — [sqlite3](https://www.sqlite.org/) installed and available in your `PATH` (pre-installed on macOS; install via your package manager on Linux)
+- **MCP** — 1Password Labs **MCP Server** experiment enabled in the desktop app (`onepassword://settings/labs`). If the setting is missing, your account may not have the `ai-local-mcp-server` feature flag.
 
 > **Note:** 1Password Environments local `.env` mounts only apply on **macOS and Linux**. **`hooks.json`** invokes **`./scripts/validate-mounted-env-files`** with no extension. On **macOS / Linux**, that runs the **Bash** script. On **Windows** the shell looks for a real file by trying suffixes from **`PATHEXT`** until one matches on disk. That yields **`validate-mounted-env-files.cmd`**, which returns **`allow`** and skips validation so agent shells are not blocked.
 
@@ -24,13 +30,31 @@ Before using this plugin, you'll need to configure your secrets in 1Password:
 
 ### Step 2: Install the plugin
 
-Install from the [Cursor Marketplace](https://cursor.com/marketplace):
+Install from the [Cursor Marketplace](https://cursor.com/marketplace). This registers hooks, the `1password-environments` agent skill, and `mcp.json` together. Do not add the 1Password MCP server manually in user settings instead of installing the plugin — agents will get MCP tools without the skill workflow.
 
 1. Open **Cursor Settings** > **Plugins**.
 2. Search for **1password**.
 3. Click **Install**.
 
 Or use the command palette: `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS) > **Plugins: Install Plugin** > search for `1password`.
+
+Or install directly:
+
+```
+/add-plugin 1password
+```
+
+### Step 3: Enable MCP in 1Password (required for Environment management)
+
+Enable the **MCP Server** experiment in the 1Password desktop app: open **Settings → Labs** (or use `onepassword://settings/labs`) and turn on **MCP Server**. The plugin's `mcp.json` connects Cursor to that server after this step.
+
+The MCP server binary on macOS:
+
+```text
+/Applications/1Password.app/Contents/MacOS/1password-mcp
+```
+
+On Linux, see the [1Password MCP server documentation](https://www.1password.dev/environments/mcp-server) for the binary path on your platform.
 
 ## Features
 
@@ -122,22 +146,75 @@ DEBUG=1 echo '{"command": "echo test", "workspace_roots": ["/path/to/your/projec
 
 When not running in debug mode, the hook writes logs to `/tmp/1password-cursor-hooks.log`. Log entries include timestamps and details about 1Password queries, validation results, and permission decisions.
 
+### MCP and agent skill
+
+The plugin connects Cursor to the local 1Password MCP server and bundles the **`1password-environments`** skill and **rule** (`skills/1password-environments/SKILL.md`, `rules/1password-environments.mdc`). Agents MUST read that skill before calling MCP tools.
+
+A **`stop` / `afterMCPExecution` hook** (`scripts/nudge-1password-import`) injects the remaining import steps when an agent stops after `append_variables` without mounting — the common failure mode for `.env` imports.
+
+The MCP server exposes `1password://docs/getting-started` and `1password://docs/environments-guide`, but those resources are **not** sufficient for agent workflows — they omit importing a plain `.env` file and mounting at the source path by default. The bundled skill defines the complete workflow, including import, append, and mount.
+
+#### Example prompts
+
+- "List my 1Password Environments"
+- "Mount my staging Environment as `.env` in this repo"
+- "What variables are in my production Environment?"
+- "Create a new Environment called `my-app-dev`"
+- "Create an Environment from my project `.env` file"
+- "Import `.env` into 1Password and mount it here"
+- "Add a placeholder for my OpenAI API key"
+
+#### MCP tools
+
+| Tool | Description |
+|------|-------------|
+| `authenticate` | Authenticate with the 1Password desktop app; returns `accountId` |
+| `list_environments` | List Developer Environments for an account |
+| `create_environment` | Create a new Developer Environment |
+| `rename_environment` | Rename an existing Developer Environment |
+| `list_variables` | List variable names in an Environment (no values) |
+| `append_variables` | Add or update Environment variables |
+| `create_local_env_file` | Mount an Environment as a local `.env` file |
+| `list_local_env_files` | List existing local `.env` mounts for an Environment |
+
+Confirm the MCP server is connected in **Cursor Settings → MCP** after installing the plugin and enabling the Labs experiment in 1Password.
+
 ## Plugin Structure
 
 ```
-1password/
+cursor-plugin/
 ├── .cursor-plugin/
 │   └── plugin.json                    # Plugin manifest
 ├── hooks/
 │   └── hooks.json                     # Hook event configuration
+├── skills/
+│   └── 1password-environments/
+│       ├── SKILL.md                   # Agent skill for MCP workflows
+│       └── reference.md               # Mount conflict and troubleshooting
+├── rules/
+│   └── 1password-environments.mdc     # Agent rule (activates on 1Password MCP work)
+├── mcp.json                           # MCP server configuration
 ├── assets/
-│   └── logo.svg                       # Plugin logo
+│   ├── logo.svg                       # Plugin logo
+│   └── icon.svg
 ├── scripts/
 │   ├── validate-mounted-env-files      # Bash hook (macOS / Linux)
-│   └── validate-mounted-env-files.cmd  # Windows cmd wrapper returns allow (validation skipped)
+│   ├── validate-mounted-env-files.cmd  # Windows cmd wrapper returns allow (validation skipped)
+│   ├── deny-env-file-read              # Blocks Read on secret .env paths
+│   └── nudge-1password-import          # Nudges agents to finish .env import + mount
 ├── LICENSE
 └── README.md
 ```
+
+## Local development
+
+Symlink the repository root for local testing:
+
+```bash
+ln -s /path/to/cursor-plugin ~/.cursor/plugins/local/1password
+```
+
+Reload Cursor after creating or updating the symlink.
 
 ## Telemetry
 
@@ -159,6 +236,7 @@ The plugin emits **opt-in** telemetry so 1Password can understand plugin adoptio
 ## Resources
 
 - [Validate local `.env` files with Cursor Agent](https://developer.1password.com/docs/environments/cursor-hook-validate/) — full setup guide on the 1Password Developer site
+- [1Password MCP server documentation](https://www.1password.dev/environments/mcp-server)
 - [1Password Agent Hooks](https://github.com/1Password/agent-hooks) — the original hooks repository this plugin is based on
 - [1Password Environments](https://developer.1password.com/docs/environments) — documentation for 1Password's environment and secrets management
 - [1Password Local `.env` Files](https://developer.1password.com/docs/environments/local-env-file) — how local `.env` file mounting works

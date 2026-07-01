@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+"""Block Read/preToolUse access to .env files.
+
+Cursor often blocks or hangs when the agent uses Read on .env paths — including
+plain ASCII files on disk, not only 1Password FIFO mounts. Deny those reads and
+steer the agent toward shell parsing or MCP tools instead.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+
+# Templates without secrets are OK to read for variable names.
+_ENV_READ_ALLOWLIST = frozenset(
+    {
+        ".env.example",
+        ".env.sample",
+        ".env.template",
+        ".env.dist",
+    }
+)
+
+_READ_TOOL_NAME = re.compile(r"^Read(?: File V2)?$", re.IGNORECASE)
+
+DENY_MESSAGE = (
+    "Do not use the Read tool on .env files. Parse with shell grep instead, "
+    "then finish the 1password-environments import workflow: append_variables, "
+    "create_local_env_file at the source path, verify with list_local_env_files. "
+    'Example: grep -E \'^[A-Za-z_][A-Za-z0-9_]*=\' "$path" | grep -v \'^#\'. '
+    "For mount conflicts see the plugin skill reference.md."
+)
+
+
+def _debug(message: str) -> None:
+    if os.environ.get("DEBUG"):
+        with open("/tmp/1password-cursor-hooks.log", "a", encoding="utf-8") as log:
+            log.write(f"deny-env-file-read: {message}\n")
+
+
+def _file_path_from_payload(data: dict) -> str:
+    path = data.get("file_path")
+    if isinstance(path, str) and path:
+        return path
+
+    tool_input = data.get("tool_input")
+    if isinstance(tool_input, dict):
+        for key in ("path", "targetFile", "file_path", "filePath"):
+            value = tool_input.get(key)
+            if isinstance(value, str) and value:
+                return value
+
+    return ""
+
+
+def _is_read_event(data: dict) -> bool:
+    hook_event = data.get("hook_event_name")
+    if hook_event == "beforeReadFile":
+        return True
+
+    tool_name = data.get("tool_name")
+    if isinstance(tool_name, str) and _READ_TOOL_NAME.match(tool_name.strip()):
+        return True
+
+    # Some Cursor builds omit tool_name on beforeReadFile-style preToolUse payloads.
+    if data.get("file_path") and not tool_name:
+        return True
+
+    return False
+
+
+def _is_env_secret_path(path: str) -> bool:
+    base = os.path.basename(path)
+    if base == ".env":
+        return True
+    if base.startswith(".env.") and base not in _ENV_READ_ALLOWLIST:
+        return True
+    return False
+
+
+def _deny() -> None:
+    print(
+        json.dumps(
+            {
+                "permission": "deny",
+                "user_message": DENY_MESSAGE,
+                "agent_message": DENY_MESSAGE,
+            }
+        )
+    )
+    sys.exit(2)
+
+
+def _allow() -> None:
+    print(json.dumps({"permission": "allow"}))
+
+
+def main() -> None:
+    raw = sys.stdin.read()
+    if not raw.strip():
+        _allow()
+        return
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        _allow()
+        return
+
+    _debug(json.dumps({"event": data.get("hook_event_name"), "tool_name": data.get("tool_name")}))
+
+    if not _is_read_event(data):
+        _allow()
+        return
+
+    file_path = _file_path_from_payload(data)
+    if not file_path or not os.path.exists(file_path):
+        _allow()
+        return
+
+    if _is_env_secret_path(file_path):
+        _debug(f"deny {file_path}")
+        _deny()
+
+    _allow()
+
+
+if __name__ == "__main__":
+    main()

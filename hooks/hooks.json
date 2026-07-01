@@ -5,6 +5,37 @@
       {
         "command": "./scripts/validate-mounted-env-files"
       }
+    ],
+    "preToolUse": [
+      {
+        "command": "./scripts/deny-env-file-read",
+        "matcher": "Read File V2|Read",
+        "failClosed": true
+      }
+    ],
+    "beforeReadFile": [
+      {
+        "command": "./scripts/deny-env-file-read",
+        "failClosed": true
+      }
+    ],
+    "afterMCPExecution": [
+      {
+        "command": "./scripts/nudge-1password-import",
+        "matcher": "append_variables|create_environment|create_local_env_file|list_variables"
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "./scripts/nudge-1password-import",
+        "matcher": "MCP:append_variables|MCP:create_environment|MCP:create_local_env_file|MCP:list_variables"
+      }
+    ],
+    "stop": [
+      {
+        "command": "./scripts/nudge-1password-import",
+        "loop_limit": 3
+      }
     ]
   }
 }

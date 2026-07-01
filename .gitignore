@@ -1,0 +1,16 @@
+.DS_Store
+
+# Environment files (keep templates committable)
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+!.env.dist
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Local dev hook wiring (use when team policy blocks local plugin imports)
+.cursor/hooks.json
