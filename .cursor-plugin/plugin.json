@@ -1,11 +1,12 @@
 {
   "name": "1password",
-  "version": "1.1.0",
-  "description": "1Password plugin for Cursor — securely manage development secrets.",
+  "displayName": "1Password",
+  "version": "1.2.0",
+  "description": "1Password Developer Environments for Cursor: MCP tools to create, import, and manage project secrets; an agent skill with the full import-and-mount workflow; and a hook that validates local .env mounts before shell commands run. Requires the 1Password desktop app on macOS or Linux with Labs MCP Server enabled. Not supported on Windows.",
   "author": {
     "name": "1Password"
   },
-  "homepage": "https://1password.com",
+  "homepage": "https://www.1password.dev/",
   "repository": "https://github.com/1Password/cursor-plugin",
   "license": "MIT",
   "keywords": [
@@ -16,8 +17,13 @@
     "env",
     "dotenv",
     "hooks",
-    "validation"
+    "validation",
+    "mcp",
+    "developer-environments",
+    "linux"
   ],
   "logo": "assets/logo.svg",
-  "hooks": "hooks/hooks.json"
+  "hooks": "./hooks/hooks.json",
+  "skills": "./skills/",
+  "mcpServers": "./mcp.json"
 }

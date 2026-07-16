@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "1password": {
+      "command": "1password-mcp",
+      "args": []
+    }
+  }
+}
