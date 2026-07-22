@@ -6,6 +6,8 @@ Install the **plugin** (not a hand-configured MCP entry alone). The bundled `1pa
 
 For more on 1Password's developer tools, see the [1Password Developer Documentation](https://developer.1password.com).
 
+*By accessing or using 1Password Developer Tools, you agree to the [API and SDK Terms of Service](https://1password.com/legal/api-sdk-terms-of-service).*
+
 ## Requirements
 
 - [1Password](https://1password.com) subscription
