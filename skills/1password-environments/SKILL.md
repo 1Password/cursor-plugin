@@ -4,8 +4,9 @@ description: >-
   Manage 1Password Developer Environments via the bundled MCP server. Use when
   creating, importing, or mounting .env files; listing Environment variable names;
   adding or updating Environment variables; renaming environments; or calling any
-  1Password MCP tool. Import-from-.env always includes create_local_env_file at
-  the source .env path unless the user explicitly opts out of mounting.
+  1Password MCP tool. On macOS/Linux, import-from-.env includes
+  create_local_env_file at the source .env path unless the user opts out.
+  On Windows, never mount — recommend op run --environment to the user.
 ---
 
 # 1Password Environments
@@ -121,8 +122,9 @@ Default path: `{workspace_root}/.env` unless the user names another path.
 2. **`authenticate`** → `accountId`
 3. **`list_environments`** — if the target name already exists, follow **Duplicate environment name** and wait for the user's choice. Otherwise **`create_environment`** (new name) or resolve the existing environment per the user's choice.
 4. **`append_variables`** with all variables (see **Concealed variables**)
-5. **Mount** — **always** (skip only if the user explicitly said not to mount; on **Windows**, skip entirely — see **Windows**):
-   - If the `.env` is **git-tracked**, stop and tell the user to delete it and commit that removal before mounting ([local .env file docs](https://www.1password.dev/environments/local-env-file.md))
+5. **Git-tracked `.env`** — **all platforms**, including Windows:
+   - If the `.env` is **git-tracked**, stop and tell the user to delete it and commit that removal ([local `.env` file docs](https://www.1password.dev/environments/local-env-file.md)). On macOS/Linux, do not proceed to mount until this is done.
+6. **Mount (macOS/Linux only)** — **always** (skip only if the user explicitly said not to mount; on **Windows**, skip entirely — see **Windows**):
    - `list_local_env_files` — skip `create_local_env_file` only if a mount already exists at the source path
    - `create_local_env_file` with `accountId`, `environmentId`, `environmentName`, `mountPath` (absolute path of the original `.env`)
    - `list_local_env_files` again to verify
@@ -134,7 +136,7 @@ If shell commands are blocked because 1Password expects a mount at the path, see
 
 **Create new Environment:** authenticate → `list_environments` → if the name exists, follow **Duplicate environment name** → `create_environment` only when the name is available or the user chose a different name.
 
-**Mount existing Environment:** authenticate → resolve environment → step 5 above.
+**Mount existing Environment:** authenticate → resolve environment → steps 5–6 above (step 6 macOS/Linux only).
 
 **Inspect names:** authenticate → resolve environment → `list_variables` → summarize names only.
 
