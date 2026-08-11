@@ -23,6 +23,27 @@ omit import-and-mount steps. Conceptual background and edge cases:
 
 Setup details: [reference.md](reference.md)
 
+## Windows
+
+**Detect the platform before any workflow** (`user_info` OS, `C:\` paths, `OS=Windows_NT`,
+etc.). On Windows, local `.env` mounts and the desktop MCP server are **not supported**.
+
+**Hard stop:** do **not** call `create_local_env_file`, attempt mounting, or run mount-only
+flows. Import is complete after `create_environment` (or resolve) + `append_variables`.
+
+Recommend **1Password CLI environment injection** ([Load secrets into the environment](https://www.1password.dev/cli/secrets-environment-variables)).
+
+Example to share:
+
+```shell
+op run --environment=<environmentId> -- <their-start-command>
+```
+
+Use the `environmentId` from the import response. Apps that read a `.env` file from disk need
+this wrapper.
+
+This section **overrides** mount steps below on Windows.
+
 ## Not done until
 
 **Import / create from `.env`** (including "using values from the project `.env`"):
@@ -42,8 +63,11 @@ checklist is done.
 
 **Mount only:** mount exists at the requested path (`list_local_env_files`).
 
+On **Windows**, skip mount steps — see **Windows** above.
+
 ## Do not
 
+- Attempt mounting or call `create_local_env_file` on **Windows**
 - Skip `create_local_env_file` on import unless the user explicitly opted out
 - Report success before the import checklist (including mount) is complete
 - Offer mounting as optional follow-up — it is mandatory on import
@@ -97,7 +121,7 @@ Default path: `{workspace_root}/.env` unless the user names another path.
 2. **`authenticate`** → `accountId`
 3. **`list_environments`** — if the target name already exists, follow **Duplicate environment name** and wait for the user's choice. Otherwise **`create_environment`** (new name) or resolve the existing environment per the user's choice.
 4. **`append_variables`** with all variables (see **Concealed variables**)
-5. **Mount** — **always** (skip only if the user explicitly said not to mount):
+5. **Mount** — **always** (skip only if the user explicitly said not to mount; on **Windows**, skip entirely — see **Windows**):
    - If the `.env` is **git-tracked**, stop and tell the user to delete it and commit that removal before mounting ([local .env file docs](https://www.1password.dev/environments/local-env-file.md))
    - `list_local_env_files` — skip `create_local_env_file` only if a mount already exists at the source path
    - `create_local_env_file` with `accountId`, `environmentId`, `environmentName`, `mountPath` (absolute path of the original `.env`)
