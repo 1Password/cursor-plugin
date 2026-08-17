@@ -7,6 +7,7 @@ description: >-
   1Password MCP tool. On macOS/Linux, import-from-.env includes
   create_local_env_file at the source .env path unless the user opts out.
   On Windows, never mount — recommend op run --environment to the user.
+  Mounted .env paths are FIFOs, not regular files — verify with list_local_env_files or test -p.
 ---
 
 # 1Password Environments
@@ -75,6 +76,7 @@ On **Windows**, skip mount steps — see **Windows** above.
 - Call `create_environment` when `list_environments` already shows that name — ask the user first (see **Duplicate environment name**)
 - Reveal secret values in chat
 - Read a mounted `.env` path — once mounted, the path is a live FIFO (named pipe); use `list_variables` instead
+- Verify a mount with regular-file checks (`test -f`, `[ -f ]`, `find -type f`, etc.) — mounts are FIFOs; use `list_local_env_files` or `test -p` instead. A failed `-f` check does not mean the mount is missing
 
 ## MCP tools
 
