@@ -2,6 +2,9 @@
   "name": "1password",
   "displayName": "1Password",
   "version": "1.2.0",
+  "minClientVersions": {
+    "sand": "never"
+  },
   "description": "1Password Developer Environments for Cursor: MCP tools to create, import, and manage project secrets; an agent skill with the full import-and-mount workflow; and a hook that validates local .env mounts before shell commands run. Requires the 1Password desktop app on macOS or Linux with Labs MCP Server enabled. Not supported on Windows.",
   "author": {
     "name": "1Password"
