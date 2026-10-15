@@ -1,0 +1,110 @@
+name: Prepare release
+
+on:
+  push:
+    branches:
+      - "release/v*"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version from branch name
+        run: |
+          version="${GITHUB_REF_NAME#release/v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release branches must be named release/vX.Y.Z (got $GITHUB_REF_NAME)"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: List PRs merged since the last release
+        run: |
+          # PRs merged into main since the last merged release PR, or all of them for the first release.
+          gh pr list --repo "$GITHUB_REPOSITORY" --base main --state merged --limit 500 \
+            --json number,title,mergedAt,headRefName \
+            --jq '
+              (map(select(.headRefName | startswith("release/v")) | .mergedAt) | max // "") as $last
+              | map(select((.headRefName | startswith("release/v") | not) and .mergedAt > $last))
+              | sort_by(.mergedAt)[]
+              | "* \(.title) (#\(.number))"' > "$RUNNER_TEMP/prs.md"
+          [ -s "$RUNNER_TEMP/prs.md" ] || echo "* (none found)" > "$RUNNER_TEMP/prs.md"
+
+      - name: Bump version in plugin.json
+        run: |
+          jq --arg v "$VERSION" '.version = $v' .cursor-plugin/plugin.json > plugin.json.tmp
+          mv plugin.json.tmp .cursor-plugin/plugin.json
+
+      - name: Add CHANGELOG.md template
+        run: |
+          if grep -qF "## [$VERSION]" CHANGELOG.md; then
+            echo "CHANGELOG.md already has an entry for $VERSION, leaving it as is"
+            exit 0
+          fi
+
+          entry="$RUNNER_TEMP/entry.md"
+          {
+            echo "## [$VERSION] - $(date -u +%Y-%m-%d)"
+            echo
+            echo "### Features"
+            echo "-"
+            echo
+            echo "### Fixes"
+            echo "-"
+            echo
+            echo "### Security"
+            echo "-"
+            echo
+            echo "<!--"
+            echo "PRs merged since the last release (delete this comment when done):"
+            cat "$RUNNER_TEMP/prs.md"
+            echo "-->"
+            echo
+          } > "$entry"
+
+          # Insert above the most recent entry, or at the end if this is the first one.
+          awk -v entry="$entry" '
+            !done && /^## / { while ((getline line < entry) > 0) print line; done = 1 }
+            { print }
+            END { if (!done) { print ""; while ((getline line < entry) > 0) print line } }
+          ' CHANGELOG.md > CHANGELOG.tmp
+          mv CHANGELOG.tmp CHANGELOG.md
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .cursor-plugin/plugin.json CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "Version and changelog already up to date"
+          else
+            git commit -m "Release v$VERSION"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+
+      - name: Open release PR
+        run: |
+          existing=$(gh pr list --head "$GITHUB_REF_NAME" --base main --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "Release PR #$existing already open"
+            exit 0
+          fi
+
+          {
+            echo "Releases v$VERSION."
+            echo
+            echo "Before merging, pull this branch and fill in the \`$VERSION\` section of \`CHANGELOG.md\`."
+            echo
+            echo "PRs merged since the last release:"
+            cat "$RUNNER_TEMP/prs.md"
+          } > "$RUNNER_TEMP/pr-body.md"
+
+          gh pr create --base main --head "$GITHUB_REF_NAME" --title "Release v$VERSION" --body-file "$RUNNER_TEMP/pr-body.md"
