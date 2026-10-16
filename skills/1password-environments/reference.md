@@ -34,7 +34,7 @@ edge cases beyond this plugin's workflow. Index:
 
 - **macOS or Linux** with the [1Password desktop app](https://1password.com/downloads) installed
 - **1Password Cursor plugin installed** (marketplace or local symlink) so this skill, hooks, and MCP config load together
-- 1Password Labs **MCP Server** experiment enabled in the desktop app (`onepassword://settings/labs`)
+- **Integrate with MCP clients** turned on under **Settings > Developer** in the desktop app
 - Access to a 1Password account with Developer Environments enabled
 - `1password-mcp` on your `PATH` (registered by the desktop app when MCP is enabled)
 - `sqlite3` in `PATH` for mount validation (pre-installed on macOS; install via your package manager on Linux)
@@ -46,7 +46,7 @@ MCP server setup and platform details: [mcp-server.md](https://www.1password.dev
 **When things fail**
 
 - Authentication or environment access fails — the 1Password desktop app may need approval, unlocking, or account access
-- MCP server unavailable — enable the **1Password Labs MCP Server** experiment via `onepassword://settings/labs`. If the Labs setting is missing, the account may lack the `ai-local-mcp-server` feature flag or an admin may have disabled the local MCP server — see [mcp-server.md](https://www.1password.dev/environments/mcp-server.md)
+- MCP server unavailable — turn on **Integrate with MCP clients** under **Settings > Developer**. If the checkbox is missing, update 1Password; your account may not have the `ai-local-mcp-server` feature flag. If it is disabled by an administrator, ask your administrator to check **Policies > Sharing and permissions > Agentic permissions > Local MCP server** — see [mcp-server.md](https://www.1password.dev/environments/mcp-server.md)
 - `create_local_env_file` fails — confirm the user is on macOS or Linux
 - Shell commands denied while 1Password expects a mount that is missing or disabled — see **Mount conflict** below
 
