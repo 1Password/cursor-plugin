@@ -1,0 +1,148 @@
+name: Prepare release
+
+on:
+  push:
+    branches:
+      - "release/v*"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: prepare-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Read version from branch name
+        run: |
+          version="${GITHUB_REF_NAME#release/v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release branches must be named release/vX.Y.Z (got $GITHUB_REF_NAME)"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Check version is newer than main
+        run: |
+          current=$(gh api "repos/$GITHUB_REPOSITORY/contents/.cursor-plugin/plugin.json?ref=main" --jq .content | base64 -d | jq -r .version)
+          newest=$(printf '%s\n%s\n' "$current" "$VERSION" | sort -V | tail -1)
+          if [ "$VERSION" = "$current" ] || [ "$newest" != "$VERSION" ]; then
+            echo "::error::Release version $VERSION must be newer than the version on main ($current)"
+            exit 1
+          fi
+
+      - name: List PRs merged since the last release
+        run: |
+          # PRs merged into main since the last merged release PR, or all of them for the first release.
+          gh pr list --repo "$GITHUB_REPOSITORY" --base main --state merged --limit 500 \
+            --json number,title,mergedAt,headRefName \
+            --jq '
+              (map(select(.headRefName | startswith("release/v")) | .mergedAt) | max // "") as $last
+              | map(select((.headRefName | startswith("release/v") | not) and .mergedAt > $last))
+              | sort_by(.mergedAt)[]
+              | "* \(.title) (#\(.number))"' > "$RUNNER_TEMP/prs.md"
+          [ -s "$RUNNER_TEMP/prs.md" ] || echo "* (none found)" > "$RUNNER_TEMP/prs.md"
+
+      - name: Bump version in plugin.json
+        run: |
+          jq --arg v "$VERSION" '.version = $v' .cursor-plugin/plugin.json > plugin.json.tmp
+          mv plugin.json.tmp .cursor-plugin/plugin.json
+
+      - name: Add CHANGELOG.md template
+        run: |
+          if grep -qF "## [$VERSION]" CHANGELOG.md; then
+            echo "CHANGELOG.md already has an entry for $VERSION, leaving it as is"
+            exit 0
+          fi
+
+          entry="$RUNNER_TEMP/entry.md"
+          {
+            echo "## [$VERSION] - $(date -u +%Y-%m-%d)"
+            echo
+            echo "### Features"
+            echo "-"
+            echo
+            echo "### Fixes"
+            echo "-"
+            echo
+            echo "### Security"
+            echo "-"
+            echo
+            echo "<!--"
+            echo "PRs merged since the last release (delete this comment when done):"
+            # A "-->" in a PR title would end the comment early, so break it up.
+            sed -E 's/--(!?>)/-- \1/g' "$RUNNER_TEMP/prs.md"
+            echo "-->"
+            echo
+          } > "$entry"
+
+          # Insert above the most recent entry, or at the end if this is the first one.
+          awk -v entry="$entry" '
+            !done && /^## / { while ((getline line < entry) > 0) print line; done = 1 }
+            { print }
+            END { if (!done) { print ""; while ((getline line < entry) > 0) print line } }
+          ' CHANGELOG.md > CHANGELOG.tmp
+          mv CHANGELOG.tmp CHANGELOG.md
+
+      - name: Commit
+        run: |
+          if git diff --quiet -- .cursor-plugin/plugin.json CHANGELOG.md; then
+            echo "Version and changelog already up to date"
+            exit 0
+          fi
+
+          # Commit through the GitHub API instead of git push so GitHub signs the
+          # commit, which main's signed-commits rule requires. expectedHeadOid makes
+          # the commit fail rather than overwrite anything pushed during this run.
+          jq -n \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg branch "$GITHUB_REF_NAME" \
+            --arg head "$(git rev-parse HEAD)" \
+            --arg message "Release v$VERSION" \
+            --arg manifest "$(base64 -w0 .cursor-plugin/plugin.json)" \
+            --arg changelog "$(base64 -w0 CHANGELOG.md)" \
+            '{
+              query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid url } } }",
+              variables: {
+                input: {
+                  branch: {repositoryNameWithOwner: $repo, branchName: $branch},
+                  expectedHeadOid: $head,
+                  message: {headline: $message},
+                  fileChanges: {
+                    additions: [
+                      {path: ".cursor-plugin/plugin.json", contents: $manifest},
+                      {path: "CHANGELOG.md", contents: $changelog}
+                    ]
+                  }
+                }
+              }
+            }' | gh api graphql --input - --jq '.data.createCommitOnBranch.commit.url'
+
+      - name: Open release PR
+        run: |
+          existing=$(gh pr list --head "$GITHUB_REF_NAME" --base main --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "Release PR #$existing already open"
+            exit 0
+          fi
+
+          {
+            echo "Releases v$VERSION."
+            echo
+            echo "Before merging, pull this branch and fill in the \`$VERSION\` section of \`CHANGELOG.md\`."
+            echo
+            echo "PRs merged since the last release:"
+            cat "$RUNNER_TEMP/prs.md"
+          } > "$RUNNER_TEMP/pr-body.md"
+
+          gh pr create --base main --head "$GITHUB_REF_NAME" --title "Release v$VERSION" --body-file "$RUNNER_TEMP/pr-body.md"

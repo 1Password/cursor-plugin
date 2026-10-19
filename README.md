@@ -225,6 +225,42 @@ The validation hook emits **opt-in** telemetry so 1Password can understand plugi
 
 **To disable.** Open the 1Password desktop app → Settings → Manage Account → Data Usage and turn off product telemetry.
 
+## Releasing
+
+Each release gets its own PR. Don't change the version number in feature PRs.
+
+1. Create a release branch from the latest `main`, named after the new version, and push it:
+
+   ```bash
+   git checkout main
+   git pull
+   git checkout -b release/v1.3.0
+   git push -u origin release/v1.3.0
+   ```
+
+   The **Prepare release** workflow commits a version bump in [`.cursor-plugin/plugin.json`](.cursor-plugin/plugin.json) and an empty `1.3.0` section in [`CHANGELOG.md`](CHANGELOG.md) to the branch, then opens a `Release v1.3.0` PR.
+
+2. Wait for the `Release v1.3.0` PR to appear (usually under a minute; you can watch the run in the **Actions** tab), then pull the workflow's commit:
+
+   ```bash
+   git pull
+   ```
+
+   If you pull before the workflow finishes, you won't get its commit, and your next push will be rejected.
+
+3. Open `CHANGELOG.md` and write what changed under **Features**, **Fixes**, or **Security**. Delete any heading you don't use. The new section includes a comment listing the PRs merged since the last release, to help you remember what went in. Delete the comment when you're done.
+
+4. Commit and push:
+
+   ```bash
+   git commit -am "Update changelog for v1.3.0"
+   git push
+   ```
+
+5. Merge the PR.
+
+Cursor picks up new commits on `main` automatically and reviews each update before publishing it to the marketplace, so changes reach users after Cursor approves them, whether or not they went out in a release.
+
 ## Resources
 
 - [Validate local `.env` files with Cursor Agent](https://developer.1password.com/docs/environments/cursor-hook-validate/) — full setup guide on the 1Password Developer site
