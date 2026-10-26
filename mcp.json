@@ -2,7 +2,8 @@
   "mcpServers": {
     "1password": {
       "command": "1password-mcp",
-      "args": []
+      "args": [],
+      "env": { "OP_MCP_SOURCE": "plugin" }
     }
   }
 }
