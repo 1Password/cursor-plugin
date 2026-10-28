@@ -1,6 +1,6 @@
 # 1Password Plugin for Cursor
 
-The official [1Password](https://1password.com) plugin for [Cursor](https://cursor.com). It ships three pieces that work together: **hooks** that validate locally mounted `.env` files, an **agent skill** with the complete Developer Environment workflow, and **MCP configuration** for the 1Password desktop app server. Secret values stay in 1Password — the agent sees variable names and mount paths, not secret contents.
+The official [1Password](https://1password.com) plugin for [Cursor](https://cursor.com). It ships three pieces that work together: **hooks** that validate locally mounted `.env` files, an **agent skill** with the complete Developer Environment workflow, and **MCP configuration** for the 1Password desktop app server. Secret values stay in 1Password — the agent sees secret names and mount paths, not secret contents.
 
 Install the **plugin** (not a hand-configured MCP entry alone). The bundled `1password-environments` skill is the authoritative agent workflow; the MCP server's built-in documentation resources cover tool basics only and omit import-and-mount steps.
 
@@ -154,7 +154,7 @@ When not running in debug mode, the hook writes logs to `/tmp/1password-cursor-h
 
 ### MCP and agent skill
 
-The plugin connects Cursor to the local 1Password MCP server and bundles the **`1password-environments`** skill (`skills/1password-environments/SKILL.md`). Agents should read that skill before calling MCP tools — it defines the complete workflow for importing a plain `.env` file, appending variables, and mounting at the source path. The MCP server's built-in docs cover tool basics but omit those import-and-mount steps.
+The plugin connects Cursor to the local 1Password MCP server and bundles the **`1password-environments`** skill (`skills/1password-environments/SKILL.md`). Agents should read that skill before calling MCP tools — it defines the complete workflow for importing a plain `.env` file, appending secrets, and mounting at the source path. The MCP server's built-in docs cover tool basics but omit those import-and-mount steps.
 
 See `skills/1password-environments/reference.md` for setup, mount conflicts, and shell validation details.
 
@@ -162,7 +162,7 @@ See `skills/1password-environments/reference.md` for setup, mount conflicts, and
 
 - "List my 1Password Environments"
 - "Mount my staging Environment as `.env` in this repo"
-- "What variables are in my production Environment?"
+- "What secrets are in my production Environment?"
 - "Create a new Environment called `my-app-dev`"
 - "Create an Environment from my project `.env` file"
 - "Import `.env` into 1Password and mount it here"
@@ -176,8 +176,8 @@ See `skills/1password-environments/reference.md` for setup, mount conflicts, and
 | `list_environments` | List Developer Environments for an account |
 | `create_environment` | Create a new Developer Environment |
 | `rename_environment` | Rename an existing Developer Environment |
-| `list_variables` | List variable names in an Environment (no values) |
-| `append_variables` | Add or update Environment variables |
+| `list_secrets` | List secret names in an Environment (no values) |
+| `append_secrets` | Add or update Environment secrets |
 | `create_local_env_file` | Mount an Environment as a local `.env` file |
 | `list_local_env_files` | List existing local `.env` mounts for an Environment |
 
