@@ -106,16 +106,17 @@ parse_json_workspace_roots() {
         if echo "$line" | grep -qE '"workspace_roots"[[:space:]]*:[[:space:]]*\['; then
             in_array=true
             # Extract content after the opening bracket
-            array_lines="${line#*\[}"
+            array_lines="${line#*\"workspace_roots\"}"
+            array_lines="${array_lines#*\[}"
             # Check if array closes on same line
             if echo "$array_lines" | grep -qE '\]'; then
-                array_lines="${array_lines%\]*}"
+                array_lines="${array_lines%%\]*}"
                 break
             fi
         elif [[ "$in_array" == "true" ]]; then
             # Check if this line closes the array
             if echo "$line" | grep -qE '\]'; then
-                array_lines="${array_lines} ${line%\]*}"
+                array_lines="${array_lines} ${line%%\]*}"
                 break
             else
                 array_lines="${array_lines} ${line}"
