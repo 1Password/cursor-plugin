@@ -1,4 +1,4 @@
-# Shared telemetry utilities for the 1Password Cursor plugin.
+# Shared telemetry utilities for the 1Password Developer Tools Cursor plugin.
 # Source this file; it defines functions only and has no side effects.
 #
 # Writes JSONL telemetry events to disk for the 1Password app to ingest.

@@ -1,6 +1,6 @@
 {
   "name": "1password",
-  "displayName": "1Password",
+  "displayName": "1Password Developer Tools",
   "version": "1.2.0",
   "minClientVersions": {
     "sand": "never"

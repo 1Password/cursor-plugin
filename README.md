@@ -1,6 +1,6 @@
-# 1Password Plugin for Cursor
+# 1Password Developer Tools for Cursor
 
-The official [1Password](https://1password.com) plugin for [Cursor](https://cursor.com). It ships three pieces that work together: **hooks** that validate locally mounted `.env` files, an **agent skill** with the complete Developer Environment workflow, and **MCP configuration** for the 1Password desktop app server. Secret values stay in 1Password — the agent sees variable names and mount paths, not secret contents.
+1Password Developer Tools is the official [1Password](https://1password.com) plugin for [Cursor](https://cursor.com). It ships three pieces that work together: **hooks** that validate locally mounted `.env` files, an **agent skill** with the complete Developer Environment workflow, and **MCP configuration** for the 1Password desktop app server. Secret values stay in 1Password — the agent sees variable names and mount paths, not secret contents.
 
 Install the **plugin** (not a hand-configured MCP entry alone). The bundled `1password-environments` skill is the authoritative agent workflow; the MCP server's built-in documentation resources cover tool basics only and omit import-and-mount steps.
 
