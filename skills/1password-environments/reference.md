@@ -47,6 +47,7 @@ MCP server setup and platform details: [mcp-server.md](https://www.1password.dev
 
 - Authentication or environment access fails — the 1Password desktop app may need approval, unlocking, or account access
 - MCP server unavailable — turn on **Integrate with MCP clients** under **Settings > Developer**. If the checkbox is missing, update 1Password; your account may not have the `ai-local-mcp-server` feature flag. If it is disabled by an administrator, ask your administrator to check **Policies > Sharing and permissions > Agentic permissions > Local MCP server** — see [mcp-server.md](https://www.1password.dev/environments/mcp-server.md)
+- MCP server fails to start on macOS 27 Golden Gate (`MCP error -32000: Connection closed`, or `Failed to start logger: Log cannot be written` in the MCP logs) — macOS is blocking Cursor from 1Password app data. Ask the user to open **System Settings > Privacy & Security > Files & Folders**, select **Cursor**, turn on the setting that starts with **"Data shared by 1Password"**, then quit and reopen Cursor. Full Disk Access is not needed. Cursor appears in that list only after one failed connection attempt
 - `create_local_env_file` fails — confirm the user is on macOS or Linux
 - Shell commands denied while 1Password expects a mount that is missing or disabled — see **Mount conflict** below
 
