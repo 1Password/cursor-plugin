@@ -62,6 +62,16 @@ The plugin registers the same MCP command 1Password documents for other clients:
 
 Install the 1Password desktop app on macOS or Linux so `1password-mcp` is available on your `PATH`. For platform-specific install paths and troubleshooting, see the [1Password MCP server documentation](https://www.1password.dev/environments/mcp-server).
 
+### Step 4: Allow Cursor to access 1Password data (macOS 27 Golden Gate)
+
+On macOS 27 Golden Gate, macOS blocks Cursor from accessing 1Password app data by default and doesn't ask for permission. Until you allow it, the MCP server can't start. Cursor shows `MCP error -32000: Connection closed`, and the MCP logs (**View > Output > MCP**) include `Failed to start logger: Log cannot be written`.
+
+1. Open **System Settings** > **Privacy & Security** > **Files & Folders**.
+2. Select **Cursor**.
+3. Turn on the setting that starts with **"Data shared by 1Password"**. The rest of the name depends on which 1Password apps you've installed.
+4. Quit Cursor (`Cmd+Q`), reopen it, and confirm the 1Password server is connected in **Cursor Settings > MCP**.
+
+
 ## Features
 
 ### Hooks
@@ -181,7 +191,7 @@ See `skills/1password-environments/reference.md` for setup, mount conflicts, and
 | `create_local_env_file` | Mount an Environment as a local `.env` file |
 | `list_local_env_files` | List existing local `.env` mounts for an Environment |
 
-Confirm the MCP server is connected in **Cursor Settings → MCP** after installing the plugin and turning on **Integrate with MCP clients** in 1Password.
+Confirm the MCP server is connected in **Cursor Settings → MCP** after installing the plugin and turning on **Integrate with MCP clients** in 1Password. On macOS 27 Golden Gate, also complete [Step 4](#step-4-allow-cursor-to-access-1password-data-macos-27-golden-gate).
 
 ## Plugin Structure
 
