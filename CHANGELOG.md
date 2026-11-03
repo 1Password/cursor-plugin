@@ -2,6 +2,24 @@
 
 All notable changes to this plugin are documented here. A new entry is added when you push a release branch; see [Releasing](README.md#releasing).
 
+## [1.3.1] - 2026-11-03
+
+### Features
+-
+
+### Fixes
+-
+
+### Security
+-
+
+<!--
+PRs merged since the last release (delete this comment when done):
+* Add macOS 27 MCP permission step to README and reference (#25)
+* Bump step-security/harden-runner from 2.22.2 to 2.22.3 (#26)
+* Rename Environment "variables" to "secrets" (#14)
+-->
+
 ## [1.3.0] - 2026-10-28
 
 ### Features
