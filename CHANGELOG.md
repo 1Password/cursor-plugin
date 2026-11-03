@@ -2,6 +2,12 @@
 
 All notable changes to this plugin are documented here. A new entry is added when you push a release branch; see [Releasing](README.md#releasing).
 
+## [1.3.1] - 2026-11-03
+
+### Fixes
+- The skill and README now say "secrets" instead of "variables", matching the MCP tools `list_secrets` and `append_secrets`. (#14)
+- The README and skill reference now include the macOS 27 step for granting the MCP server permission. (#25)
+
 ## [1.3.0] - 2026-10-28
 
 ### Features
