@@ -4,21 +4,9 @@ All notable changes to this plugin are documented here. A new entry is added whe
 
 ## [1.3.1] - 2026-11-03
 
-### Features
--
-
 ### Fixes
--
-
-### Security
--
-
-<!--
-PRs merged since the last release (delete this comment when done):
-* Add macOS 27 MCP permission step to README and reference (#25)
-* Bump step-security/harden-runner from 2.22.2 to 2.22.3 (#26)
-* Rename Environment "variables" to "secrets" (#14)
--->
+- The skill and README now say "secrets" instead of "variables", matching the MCP tools `list_secrets` and `append_secrets`. (#14)
+- The README and skill reference now include the macOS 27 step for granting the MCP server permission. (#25)
 
 ## [1.3.0] - 2026-10-28
 
