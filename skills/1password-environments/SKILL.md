@@ -2,8 +2,8 @@
 name: 1password-environments
 description: >-
   Manage 1Password Developer Environments via the bundled MCP server. Use when
-  creating, importing, or mounting .env files; listing Environment variable names;
-  adding or updating Environment variables; renaming environments; or calling any
+  creating, importing, or mounting .env files; listing Environment secret names;
+  adding or updating Environment secrets; renaming environments; or calling any
   1Password MCP tool. On macOS/Linux, import-from-.env includes
   create_local_env_file at the source .env path unless the user opts out.
   On Windows, never mount — recommend op run --environment to the user.
@@ -31,7 +31,7 @@ Setup details: [reference.md](reference.md)
 etc.). On Windows, local `.env` mounts and the desktop MCP server are **not supported**.
 
 **Hard stop:** do **not** call `create_local_env_file`, attempt mounting, or run mount-only
-flows. Import is complete after `create_environment` (or resolve) + `append_variables`.
+flows. Import is complete after `create_environment` (or resolve) + `append_secrets`.
 
 Recommend **1Password CLI environment injection** ([Load secrets into the environment](https://www.1password.dev/cli/secrets-environment-variables)).
 
@@ -51,7 +51,7 @@ This section **overrides** mount steps below on Windows.
 **Import / create from `.env`** (including "using values from the project `.env`"):
 
 - [ ] Environment created or resolved
-- [ ] Variables appended via `append_variables`
+- [ ] Secrets appended via `append_secrets`
 - [ ] `create_local_env_file` at the **source** `.env` absolute path — **always**
 - [ ] Mount verified with `list_local_env_files`
 
@@ -59,8 +59,8 @@ Mounting at the source `.env` path is mandatory, not optional follow-up. The
 **only** exception is the user explicitly opting out ("without mounting", "do not
 mount", "skip the mount"). Never ask "want me to mount?" — just mount.
 
-Stopping after `create_environment` + `append_variables` is **incomplete**.
-`list_variables` is not mount verification. Do not report success until the mount
+Stopping after `create_environment` + `append_secrets` is **incomplete**.
+`list_secrets` is not mount verification. Do not report success until the mount
 checklist is done.
 
 **Mount only:** mount exists at the requested path (`list_local_env_files`).
@@ -75,7 +75,7 @@ On **Windows**, skip mount steps — see **Windows** above.
 - Offer mounting as optional follow-up — it is mandatory on import
 - Call `create_environment` when `list_environments` already shows that name — ask the user first (see **Duplicate environment name**)
 - Reveal secret values in chat
-- Read a mounted `.env` path — once mounted, the path is a live FIFO (named pipe); use `list_variables` instead
+- Read a mounted `.env` path — once mounted, the path is a live FIFO (named pipe); use `list_secrets` instead
 - Verify a mount with regular-file checks (`test -f`, `[ -f ]`, `find -type f`, etc.) — mounts are FIFOs; use `list_local_env_files` or `test -p` instead. A failed `-f` check does not mean the mount is missing
 
 ## MCP tools
@@ -109,7 +109,7 @@ target `environmentName` already exists.
 
 If it does, **stop and ask the user** how they want to proceed. Offer options such as:
 
-- **Use the existing environment** — skip `create_environment`; use its `environmentId` for later steps (`append_variables`, mount, etc.)
+- **Use the existing environment** — skip `create_environment`; use its `environmentId` for later steps (`append_secrets`, mount, etc.)
 - **Use a different name** — wait for a new name from the user, then `create_environment`
 - **Cancel** — do not create or modify anything
 
@@ -123,7 +123,7 @@ Default path: `{workspace_root}/.env` unless the user names another path.
 1. **Read** the `.env` file with the Read tool to get its keys and values. Strip optional surrounding quotes from values. Pass values to MCP only — never paste secret values into chat.
 2. **`authenticate`** → `accountId`
 3. **`list_environments`** — if the target name already exists, follow **Duplicate environment name** and wait for the user's choice. Otherwise **`create_environment`** (new name) or resolve the existing environment per the user's choice.
-4. **`append_variables`** with all variables (see **Concealed variables**)
+4. **`append_secrets`** with all secrets (see **Concealed secrets**)
 5. **Git-tracked `.env`** — **all platforms**, including Windows:
    - If the `.env` is **git-tracked**, stop and tell the user to delete it and commit that removal ([local `.env` file docs](https://www.1password.dev/environments/local-env-file.md)). On macOS/Linux, do not proceed to mount until this is done.
 6. **Mount (macOS/Linux only)** — **always** (skip only if the user explicitly said not to mount; on **Windows**, skip entirely — see **Windows**):
@@ -140,15 +140,15 @@ If shell commands are blocked because 1Password expects a mount at the path, see
 
 **Mount existing Environment:** authenticate → resolve environment → steps 5–6 above (step 6 macOS/Linux only).
 
-**Inspect names:** authenticate → resolve environment → `list_variables` → summarize names only.
+**Inspect names:** authenticate → resolve environment → `list_secrets` → summarize names only.
 
 **Rename:** authenticate → resolve environment → confirm name → `rename_environment`.
 
-**Add/update variables:** authenticate → resolve environment → `list_variables` → `append_variables`.
+**Add/update secrets:** authenticate → resolve environment → `list_secrets` → `append_secrets`.
 
-## Concealed variables
+## Concealed secrets
 
-When calling `append_variables`, set `concealed` per variable:
+When calling `append_secrets`, set `concealed` per secret:
 
 - Set `concealed: true` for API keys, tokens, passwords, private keys, and connection strings with credentials.
 - Set `concealed: false` for ports, public URLs, feature flags, and non-sensitive config unless the user says otherwise.
@@ -157,7 +157,7 @@ When calling `append_variables`, set `concealed` per variable:
 ## Safety
 
 - Never reveal secret values in chat
-- Ask before changing variables unless the request is explicit
+- Ask before changing secrets unless the request is explicit
 
 ## Plugin hook
 
