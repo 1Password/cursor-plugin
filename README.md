@@ -1,6 +1,6 @@
-# 1Password Plugin for Cursor
+# 1Password Developer Tools for Cursor
 
-The official [1Password](https://1password.com) plugin for [Cursor](https://cursor.com). It ships three pieces that work together: **hooks** that validate locally mounted `.env` files, an **agent skill** with the complete Developer Environment workflow, and **MCP configuration** for the 1Password desktop app server. Secret values stay in 1Password — the agent sees secret names and mount paths, not secret contents.
+1Password Developer Tools is the official [1Password](https://1password.com) plugin for [Cursor](https://cursor.com). It ships three pieces that work together: **hooks** that validate locally mounted `.env` files, an **agent skill** with the complete Developer Environment workflow, and **MCP configuration** for the 1Password desktop app server. Secret values stay in 1Password — the agent sees secret names and mount paths, not secret contents.
 
 Install the **plugin** (not a hand-configured MCP entry alone). The bundled `1password-environments` skill is the authoritative agent workflow; the MCP server's built-in documentation resources cover tool basics only and omit import-and-mount steps.
 
@@ -15,7 +15,7 @@ For more on 1Password's developer tools, see the [1Password Developer Documentat
 Additional requirements by feature:
 
 - **Hooks** — [sqlite3](https://www.sqlite.org/) installed and available in your `PATH` (pre-installed on macOS; install via your package manager on Linux)
-- **MCP** — 1Password Labs **MCP Server** experiment enabled in the desktop app (`onepassword://settings/labs`). If the setting is missing, your account may not have the `ai-local-mcp-server` feature flag. The plugin's `mcp.json` launches the `1password-mcp` command from your `PATH`, as described in the [1Password MCP server documentation](https://www.1password.dev/environments/mcp-server).
+- **MCP** — **Integrate with MCP clients** turned on under **Settings > Developer** in the desktop app. If the checkbox is missing, your account may not have the `ai-local-mcp-server` feature flag. The plugin's `mcp.json` launches the `1password-mcp` command from your `PATH`, as described in the [1Password MCP server documentation](https://www.1password.dev/environments/mcp-server).
 
 > **Platform support:** MCP, local `.env` mounts, and mount validation are supported on **macOS and Linux**. On **Windows**, the validation hook returns `allow` and skips checks so agent shells are not blocked; MCP and local mounts are not available. **`hooks.json`** invokes **`./scripts/validate-mounted-env-files`** with no extension. On macOS and Linux, that runs the Bash script. On Windows, the shell resolves **`validate-mounted-env-files.cmd`** via `PATHEXT`.
 
@@ -46,7 +46,7 @@ Or install directly:
 
 ### Step 3: Enable MCP in 1Password (required for Environment management)
 
-Enable the **MCP Server** experiment in the 1Password desktop app: open **Settings → Labs** (or use `onepassword://settings/labs`) and turn on **MCP Server**. The plugin's `mcp.json` connects Cursor to that server after this step.
+In the 1Password desktop app, go to **Settings > Developer** and turn on **Integrate with MCP clients**. The plugin's `mcp.json` connects Cursor to that server after this step.
 
 The plugin registers the same MCP command 1Password documents for other clients:
 
@@ -61,6 +61,16 @@ The plugin registers the same MCP command 1Password documents for other clients:
 ```
 
 Install the 1Password desktop app on macOS or Linux so `1password-mcp` is available on your `PATH`. For platform-specific install paths and troubleshooting, see the [1Password MCP server documentation](https://www.1password.dev/environments/mcp-server).
+
+### Step 4: Allow Cursor to access 1Password data (macOS 27 Golden Gate)
+
+On macOS 27 Golden Gate, macOS blocks Cursor from accessing 1Password app data by default and doesn't ask for permission. Until you allow it, the MCP server can't start. Cursor shows `MCP error -32000: Connection closed`, and the MCP logs (**View > Output > MCP**) include `Failed to start logger: Log cannot be written`.
+
+1. Open **System Settings** > **Privacy & Security** > **Files & Folders**.
+2. Select **Cursor**.
+3. Turn on the setting that starts with **"Data shared by 1Password"**. The rest of the name depends on which 1Password apps you've installed.
+4. Quit Cursor (`Cmd+Q`), reopen it, and confirm the 1Password server is connected in **Cursor Settings > MCP**.
+
 
 ## Features
 
@@ -181,7 +191,7 @@ See `skills/1password-environments/reference.md` for setup, mount conflicts, and
 | `create_local_env_file` | Mount an Environment as a local `.env` file |
 | `list_local_env_files` | List existing local `.env` mounts for an Environment |
 
-Confirm the MCP server is connected in **Cursor Settings → MCP** after installing the plugin and enabling the Labs experiment in 1Password.
+Confirm the MCP server is connected in **Cursor Settings → MCP** after installing the plugin and turning on **Integrate with MCP clients** in 1Password. On macOS 27 Golden Gate, also complete [Step 4](#step-4-allow-cursor-to-access-1password-data-macos-27-golden-gate).
 
 ## Plugin Structure
 
@@ -224,6 +234,42 @@ The validation hook emits **opt-in** telemetry so 1Password can understand plugi
 **Where events are written.** Events are appended as JSON lines to `~/.config/1Password/data/hook-events/events.jsonl`. The 1Password desktop app periodically ingests this file and forwards events to 1Password's telemetry pipeline. Telemetry only fires on macOS and Linux; the Windows stub does not emit events.
 
 **To disable.** Open the 1Password desktop app → Settings → Manage Account → Data Usage and turn off product telemetry.
+
+## Releasing
+
+Each release gets its own PR. Don't change the version number in feature PRs.
+
+1. Create a release branch from the latest `main`, named after the new version, and push it:
+
+   ```bash
+   git checkout main
+   git pull
+   git checkout -b release/v1.3.0
+   git push -u origin release/v1.3.0
+   ```
+
+   The **Prepare release** workflow commits a version bump in [`.cursor-plugin/plugin.json`](.cursor-plugin/plugin.json) and an empty `1.3.0` section in [`CHANGELOG.md`](CHANGELOG.md) to the branch, then opens a `Release v1.3.0` PR.
+
+2. Wait for the `Release v1.3.0` PR to appear (usually under a minute; you can watch the run in the **Actions** tab), then pull the workflow's commit:
+
+   ```bash
+   git pull
+   ```
+
+   If you pull before the workflow finishes, you won't get its commit, and your next push will be rejected.
+
+3. Open `CHANGELOG.md` and write what changed under **Features**, **Fixes**, or **Security**. Delete any heading you don't use. The new section includes a comment listing the PRs merged since the last release, to help you remember what went in. Delete the comment when you're done.
+
+4. Commit and push:
+
+   ```bash
+   git commit -am "Update changelog for v1.3.0"
+   git push
+   ```
+
+5. Merge the PR.
+
+Cursor picks up new commits on `main` automatically and reviews each update before publishing it to the marketplace, so changes reach users after Cursor approves them, whether or not they went out in a release.
 
 ## Resources
 
